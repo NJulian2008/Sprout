@@ -1,0 +1,18 @@
+{# Day × time-of-day availability grid.
+   Context: current_avail (list of "Day-Part"), target (hidden field name, default "availability") #}
+{% set parts = ["Morning", "Afternoon", "Evening", "Night"] %}
+{% set days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] %}
+{% set sel = current_avail or [] %}
+<input type="hidden" name="{{ target|default('availability') }}" value="{{ sel|join(',') }}">
+<div class="avail-grid" data-target="{{ target|default('availability') }}">
+  <div class="head"></div>
+  {% for p in parts %}<div class="head">{{ p }}</div>{% endfor %}
+  {% for d in days %}
+    <div class="daylabel">{{ d }}</div>
+    {% for p in parts %}
+      {% set slot = d ~ "-" ~ p %}
+      <div class="avail-cell {% if slot in sel %}selected{% endif %}" data-slot="{{ slot }}">{{ "✓" if slot in sel else "" }}</div>
+    {% endfor %}
+  {% endfor %}
+</div>
+<script src="/static/grid.js"></script>

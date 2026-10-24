@@ -1,0 +1,23 @@
+{# Renders extracted skill chips + experience level badge, and a hidden JSON field.
+   Context: skill_scores (dict), experience_level, experience_score, taxonomy, field_name #}
+<div id="skill-chips-result">
+  {% if skill_scores %}
+    <p class="muted sample-note">AI estimate — edit any value below.</p>
+    <div class="chips">
+      {% for sid, conf in skill_scores.items() %}
+        <span class="chip">
+          {{ taxonomy[sid].label if sid in taxonomy else sid }}
+          <span class="conf">{{ (conf * 100)|round|int }}%</span>
+        </span>
+      {% endfor %}
+    </div>
+    <p>Experience level:
+      <span class="badge badge-{{ experience_level }}">{{ experience_level|capitalize }}</span>
+      <span class="muted">(score {{ experience_score }})</span>
+    </p>
+    <input type="hidden" name="{{ field_name }}" value='{{ skill_scores|tojson }}'>
+  {% else %}
+    <p class="muted">No skills detected yet. Paste resume or project text and click “Find my skills”.</p>
+    <input type="hidden" name="{{ field_name }}" value="{}">
+  {% endif %}
+</div>

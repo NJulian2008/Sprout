@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Mentorship — Sprout{% endblock %}
+{% block content %}
+{% set is_mentor = current and current.id == ms.mentor_id %}
+{% set is_student = current and current.id == ms.student_id %}
+
+<h1>{{ student.name }} &amp; {{ mentor.name }}</h1>
+<p class="muted">Status: <strong>{{ ms.status }}</strong>
+  {% if ms.duration_weeks %}· {{ ms.duration_weeks }} weeks{% endif %}
+  · cadence {{ ms.cadence|replace("_"," ") }}</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="deliverables">Deliverables</button>
+  <button class="tab" data-tab="meetings">Meetings</button>
+  <button class="tab" data-tab="confirm">Confirm</button>
+  <button class="tab" data-tab="messages">Messages</button>
+</div>
+
+{# ── Deliverables ── #}
+<div class="tab-panel active" id="panel-deliverables">
+  {% if not deliverables %}<div class="empty">No deliverables yet.</div>{% endif %}
+  {% for d in deliverables %}
+    <div class="card">
+      <p><strong>{{ d.text }}</strong> <span class="status-chip status-{{ d.status }}">{{ d.status }}</span></p>
+      {% if d.mentor_annotation %}<p class="muted">Mentor note: {{ d.mentor_annotation }}</p>{% endif %}
+      {% if is_mentor %}
+        <form method="post" action="/deliverables/{{ d.id }}" class="form-actions" style="align-items:flex-end;">
+          <div class="field" style="flex:1;margin:0;">
+            <label>Annotation</label>
+            <input type="text" name="mentor_annotation" value="{{ d.mentor_annotation }}">
+          </div>
+          {% if d.status == "proposed" %}<button class="btn btn-primary btn-sm" name="status" value="approved">Approve</button>{% endif %}
+          {% if d.status == "approved" %}<button class="btn btn-primary btn-sm" name="status" value="done">Mark done</button>{% endif %}
+          {% if d.status == "proposed" or d.status == "approved" %}<button class="btn btn-secondary btn-sm" name="status" value="{{ d.status }}">Save note</button>{% endif %}
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% if is_student and ms.status in ("intro_held", "active") %}
+    <div class="card">
+      <h3>Propose a deliverable</h3>
+      <form method="post" action="/mentorships/{{ ms.id }}/deliverables">
+        <div class="field"><input type="text" name="text" placeholder="What will you deliver?" required></div>
+        <button class="btn btn-primary btn-sm">Add deliverable</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+{# ── Meetings ── #}
+<div class="tab-panel" id="panel-meetings">
+  {% if ms.status == "requested" and is_mentor %}
+    <div class="card">
+      <h3>Schedule the intro</h3>
+      <form method="post" action="/mentorships/{{ ms.id }}/intro" class="form-actions" style="align-items:flex-end;">
+        <div class="field" style="flex:1;margin:0;"><label>Agreed time</label><input type="text" name="slot" placeholder="e.g. Tue 7pm" required></div>
+        <button class="btn btn-primary">Schedule intro</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% for mt in meetings %}
+    <div class="card">
+      <h3>{{ "Intro meeting" if mt.number == 0 else "Meeting " ~ mt.number }}
+        <span class="status-chip status-{{ 'done' if mt.status=='held' else 'approved' }}">{{ mt.status }}</span></h3>
+      {% if mt.agreed_time_text %}<p class="muted">Agreed time: {{ mt.agreed_time_text }}</p>{% endif %}
+      {% if mt.summary %}<p>{{ mt.summary }}</p>{% endif %}
+      {% if mt.progress_notes %}
+        <ul>{% for n in mt.progress_notes %}<li>{{ n }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if mt.number == 0 and mt.status == "scheduled" and is_mentor %}
+        <form method="post" action="/mentorships/{{ ms.id }}/intro/held"><button class="btn btn-secondary btn-sm">Mark intro held</button></form>
+      {% endif %}
+      {% if is_mentor and ms.status == "active" %}
+        <form method="post" action="/mentorships/{{ ms.id }}/meetings/{{ mt.number }}" style="margin-top:.5rem;">
+          <div class="field"><label>Log progress</label><input type="text" name="note" placeholder="Progress note"></div>
+          <button class="btn btn-secondary btn-sm">Save log</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  {% if ms.status == "active" and is_mentor %}
+    <div class="card">
+      <h3>Schedule next meeting</h3>
+      <form method="post" action="/mentorships/{{ ms.id }}/meetings/{{ meetings|length }}" class="form-actions" style="align-items:flex-end;">
+        <div class="field" style="flex:1;margin:0;"><label>Agreed time</label><input type="text" name="agreed_time_text" placeholder="e.g. next Tue 7pm"></div>
+        <button class="btn btn-primary btn-sm">Add meeting</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if ms.status == "active" and is_student %}
+    <div class="card">
+      <h3>Leave a testimonial (ends the mentorship)</h3>
+      <form method="post" action="/mentorships/{{ ms.id }}/testimonial">
+        <div class="field"><textarea name="text" placeholder="Share how this mentorship helped you..." required></textarea></div>
+        <button class="btn btn-primary btn-sm">Submit testimonial &amp; complete</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+{# ── Confirm ── #}
+<div class="tab-panel" id="panel-confirm">
+  {% include "partials/confirm_decline.html" with context %}
+</div>
+
+{# ── Messages ── #}
+<div class="tab-panel" id="panel-messages">
+  <div class="empty">Messaging is a future feature. For now, agree times in the Meetings tab.</div>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+    t.classList.add('active');
+    document.getElementById('panel-' + t.getAttribute('data-tab')).classList.add('active');
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Mentor Sign-up — Sprout{% endblock %}
+{% block content %}
+<h1>Offer to mentor</h1>
+<p class="muted">Paste your resume and we'll pull out your skills. Bounded commitment, real impact.</p>
+
+<form method="post" action="/mentor/signup">
+  <div class="card">
+    <h3>About you</h3>
+    <div class="field"><label>Name</label><input type="text" name="name" required></div>
+    <div class="field"><label>Short bio</label><input type="text" name="bio_short" placeholder="One line about you"></div>
+    <div class="field"><label>Title</label><input type="text" name="title" placeholder="e.g. Senior Software Engineer"></div>
+    <div class="field"><label>Organization</label><input type="text" name="org"></div>
+    <div class="field">
+      <label>Mentor type</label>
+      <select name="mentor_type">
+        <option value="industry">Industry professional</option>
+        <option value="faculty">OSU faculty</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Your skills</h3>
+    <p class="muted sample-note">Paste your resume or LinkedIn text. AI estimates a confidence for each skill — edit freely.</p>
+    <div class="field">
+      <textarea name="resume_text" id="mentor-resume" placeholder="Paste resume / LinkedIn text..."></textarea>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm"
+            hx-post="/mentor/skills/extract"
+            hx-include="#mentor-resume"
+            hx-target="#skill-chips-result"
+            hx-swap="outerHTML">Find my skills</button>
+    {% set skill_scores = {} %}{% set experience_level = "intermediate" %}{% set experience_score = 0 %}{% set field_name = "skill_scores_json" %}
+    {% include "partials/skill_chips.html" %}
+    <div class="field" style="margin-top:1rem;">
+      <label>Additional experiences</label>
+      <textarea name="additional_experiences" placeholder="Anything else you'd mentor on"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>What do you want to help with?</h3>
+    <input type="hidden" name="outcomes" value="">
+    <div class="chips" id="outcomes">
+      {% for val, lab in [("learn_skill","Teach a skill"),("build_project","Build a project"),("career_navigation","Career guidance"),("research","Research")] %}
+        <span class="chip chip-selectable" data-outcome="{{ val }}">{{ lab }}</span>
+      {% endfor %}
+    </div>
+    <div class="field" style="margin-top:.75rem;">
+      <label>How many students can you take?</label>
+      <select name="max_students"><option>1</option><option selected>2</option><option>3</option></select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Your availability</h3>
+    {% set current_avail = [] %}
+    {% include "partials/availability_grid.html" %}
+  </div>
+
+  <div class="card">
+    <h3>Three things that define your mentoring</h3>
+    <input type="hidden" name="top3" value="">
+    <div class="chips" id="priorities">
+      {% for val, lab in [("clear_feedback","Clear feedback"),("hands_on_building","Hands-on building"),("flexible_schedule","Flexible schedule"),("career_guidance","Career guidance"),("accountability","Accountability"),("casual_friendly","Casual & friendly"),("technical_depth","Technical depth"),("big_picture","Big picture")] %}
+        <span class="chip chip-selectable" data-priority="{{ val }}">{{ lab }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-actions"><button class="btn btn-primary">Create mentor profile</button></div>
+</form>
+
+<script>
+function multiSelect(containerId, hiddenName, attr, max) {
+  var hidden = document.querySelector('input[name="'+hiddenName+'"]');
+  var sel = [];
+  document.querySelectorAll('#'+containerId+' .chip-selectable').forEach(function(c){
+    c.addEventListener('click', function(){
+      var v = c.getAttribute(attr);
+      if (c.classList.contains('selected')) { c.classList.remove('selected'); sel = sel.filter(function(x){return x!==v;}); }
+      else if (!max || sel.length < max) { c.classList.add('selected'); sel.push(v); }
+      hidden.value = sel.join(',');
+    });
+  });
+}
+multiSelect('outcomes','outcomes','data-outcome',null);
+multiSelect('priorities','top3','data-priority',3);
+</script>
+{% endblock %}

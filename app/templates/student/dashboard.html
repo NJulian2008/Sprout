@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard — Sprout{% endblock %}
+{% block content %}
+<h1>Your mentorships</h1>
+
+{% if not items %}
+  <div class="empty">No mentorships yet. <a href="/student/signup">Find a mentor →</a></div>
+{% endif %}
+
+{% for it in items %}
+  {% set ms = it.ms %}{% set mentor = it.mentor %}
+  <div class="card">
+    <div class="card-row">
+      <img class="avatar-sm" src="{{ mentor.headshot_url }}" alt="{{ mentor.name }}">
+      <div style="flex:1;">
+        <h3 style="margin:.1rem 0;">{{ mentor.name }}</h3>
+        <p class="muted" style="margin:0;">{{ mentor.title }}</p>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="/mentorship/{{ ms.id }}">Open workspace</a>
+    </div>
+
+    <div class="timeline">
+      {% set states = [("requested","Chose mentor"),("intro_scheduled","Intro scheduled"),("intro_held","Intro held"),("active","Confirmed & active"),("completed","Completed")] %}
+      {% set order = {"requested":0,"intro_scheduled":1,"intro_held":2,"active":3,"completed":4,"ended":2} %}
+      {% for key, lab in states %}
+        {% set idx = loop.index0 %}
+        <span class="timeline-step {% if order[ms.status] > idx %}done{% elif order[ms.status] == idx %}current{% endif %}">{{ lab }}</span>
+        {% if not loop.last %}<span class="timeline-arrow">→</span>{% endif %}
+      {% endfor %}
+    </div>
+
+    {% if ms.status == "intro_held" %}
+      <h3>Decide together</h3>
+      {% set student = current %}
+      {% include "partials/confirm_decline.html" with context %}
+    {% endif %}
+
+    {% if ms.status == "active" %}
+      {% set pending = it.deliverables | selectattr("status", "ne", "done") | list %}
+      {% if pending %}
+      <div class="banner">
+        <h3>Your deliverables for the next meeting</h3>
+        <ul>
+          {% for d in pending %}<li>{{ d.text }} <span class="status-chip status-{{ d.status }}">{{ d.status }}</span></li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}

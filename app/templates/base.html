@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Sprout{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand">🌱 Sprout</a>
+    <nav class="nav">
+      <a href="/student/signup">For Students</a>
+      <a href="/mentor/signup">For Mentors</a>
+      <a href="/demo" class="nav-demo">Demo Panel</a>
+    </nav>
+    {% if current %}
+    <div class="role-banner role-{{ current.role }}">
+      Viewing as <strong>{{ current.name }}</strong> ({{ current.role|capitalize }})
+    </div>
+    {% else %}
+    <div class="role-banner role-none">Not signed in — pick a role on the Demo Panel</div>
+    {% endif %}
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>All people, resumes, and projects in this app are <strong>invented sample data</strong>
+       for the HackOHI/O demo. No real personal data is stored.</p>
+  </footer>
+</body>
+</html>

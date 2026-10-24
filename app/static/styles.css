@@ -1,0 +1,212 @@
+/* ── Sprout styles — white base, midtone green accent ──────────────────────── */
+:root {
+  --green: #4a7c59;
+  --green-dark: #3a6147;
+  --green-light: #e8f1ea;
+  --blue: #2563eb;
+  --purple: #7c3aed;
+  --yellow: #d4a017;
+  --ink: #1f2933;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --bg: #ffffff;
+  --bg-soft: #f8faf9;
+  --danger: #c0392b;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg-soft);
+  line-height: 1.5;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: .75rem 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.brand { font-weight: 700; font-size: 1.25rem; color: var(--green); text-decoration: none; }
+.nav { display: flex; gap: 1rem; }
+.nav a { color: var(--ink); text-decoration: none; font-size: .95rem; }
+.nav a:hover { color: var(--green); }
+.nav-demo { color: var(--muted) !important; }
+.role-banner {
+  margin-left: auto;
+  padding: .35rem .75rem;
+  border-radius: 999px;
+  font-size: .85rem;
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+.role-banner.role-mentor { background: #e0ecfb; color: var(--blue); }
+.role-banner.role-student { background: #efe6fc; color: var(--purple); }
+.role-banner.role-none { background: #f3f4f6; color: var(--muted); }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+.footer {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--muted);
+  font-size: .8rem;
+  border-top: 1px solid var(--line);
+  margin-top: 2rem;
+}
+h1 { font-size: 1.75rem; margin-bottom: .25rem; }
+h2 { font-size: 1.3rem; margin-top: 1.75rem; }
+h3 { font-size: 1.05rem; }
+.muted { color: var(--muted); }
+.sample-note { font-size: .8rem; color: var(--muted); font-style: italic; }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.card-row { display: flex; gap: 1rem; align-items: flex-start; }
+.match-card { border-left: 4px solid var(--green); }
+.match-rank {
+  font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  color: var(--green); letter-spacing: .05em;
+}
+
+/* ── Avatars ─────────────────────────────────────────────────────────────── */
+.avatar { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
+.avatar-sm { width: 40px; height: 40px; border-radius: 50%; }
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block; padding: .15rem .55rem; border-radius: 999px;
+  font-size: .75rem; font-weight: 600;
+}
+.badge-industry { background: #e0ecfb; color: var(--blue); }
+.badge-faculty { background: var(--green-light); color: var(--green-dark); }
+.badge-beginner { background: #fcf3d7; color: var(--yellow); }
+.badge-intermediate { background: #e0ecfb; color: var(--blue); }
+.badge-advanced { background: var(--green-light); color: var(--green-dark); }
+
+/* ── Skill chips ─────────────────────────────────────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .25rem .6rem; border-radius: 999px;
+  background: var(--green-light); color: var(--green-dark);
+  font-size: .8rem; border: 1px solid transparent;
+}
+.chip .conf { font-weight: 700; opacity: .8; font-size: .72rem; }
+.chip-selectable { cursor: pointer; background: #f3f4f6; color: var(--ink); border-color: var(--line); }
+.chip-selectable.selected { background: var(--green); color: #fff; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block; padding: .55rem 1.1rem; border-radius: 8px;
+  border: none; cursor: pointer; font-size: .9rem; font-weight: 600;
+  text-decoration: none; text-align: center;
+}
+.btn-primary { background: var(--green); color: #fff; }
+.btn-primary:hover { background: var(--green-dark); }
+.btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn-secondary:hover { background: var(--bg-soft); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-sm { padding: .3rem .7rem; font-size: .8rem; }
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+label { display: block; font-weight: 600; margin-bottom: .3rem; font-size: .9rem; }
+input[type=text], input[type=url], textarea, select {
+  width: 100%; padding: .55rem .7rem; border: 1px solid var(--line);
+  border-radius: 8px; font-size: .95rem; font-family: inherit;
+}
+textarea { min-height: 90px; resize: vertical; }
+.field { margin-bottom: 1.1rem; }
+.form-actions { display: flex; gap: .75rem; margin-top: 1rem; }
+
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.progress { display: flex; gap: .4rem; margin-bottom: 1.5rem; }
+.progress-step {
+  flex: 1; height: 6px; border-radius: 3px; background: var(--line);
+}
+.progress-step.active { background: var(--green); }
+
+/* ── Availability grid ───────────────────────────────────────────────────── */
+.avail-grid { display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 4px; max-width: 560px; }
+.avail-grid .head { font-size: .75rem; font-weight: 700; text-align: center; color: var(--muted); padding: .3rem; }
+.avail-grid .daylabel { font-size: .8rem; font-weight: 600; display: flex; align-items: center; }
+.avail-cell {
+  padding: .5rem; text-align: center; border: 1px solid var(--line);
+  border-radius: 6px; cursor: pointer; font-size: .7rem; background: #fff; user-select: none;
+}
+.avail-cell.selected { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.tabs { display: flex; gap: .25rem; border-bottom: 2px solid var(--line); margin-bottom: 1rem; }
+.tab {
+  padding: .5rem 1rem; cursor: pointer; border: none; background: none;
+  font-size: .9rem; font-weight: 600; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Confirm/Decline panel ──────────────────────────────────────────────── */
+.confirm-panel { display: flex; gap: 1rem; }
+.confirm-side {
+  flex: 1; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius);
+  text-align: center;
+}
+.status-waiting { color: var(--muted); }
+.status-confirmed { color: var(--green); font-weight: 700; }
+.status-declined { color: var(--danger); font-weight: 700; }
+
+/* ── Timeline ────────────────────────────────────────────────────────────── */
+.timeline { display: flex; align-items: center; gap: .5rem; margin: 1rem 0; flex-wrap: wrap; }
+.timeline-step {
+  padding: .35rem .7rem; border-radius: 999px; font-size: .78rem;
+  background: #f3f4f6; color: var(--muted);
+}
+.timeline-step.done { background: var(--green-light); color: var(--green-dark); }
+.timeline-step.current { background: var(--green); color: #fff; }
+.timeline-arrow { color: var(--line); }
+
+/* ── Banner ──────────────────────────────────────────────────────────────── */
+.banner {
+  background: var(--green-light); border-left: 4px solid var(--green);
+  padding: 1rem 1.25rem; border-radius: var(--radius); margin-bottom: 1rem;
+}
+.banner h3 { margin: 0 0 .5rem; color: var(--green-dark); }
+
+/* ── Status chip for deliverables ──────────────────────────────────────── */
+.status-chip { font-size: .72rem; padding: .15rem .5rem; border-radius: 999px; font-weight: 600; }
+.status-proposed { background: #f3f4f6; color: var(--muted); }
+.status-approved { background: #e0ecfb; color: var(--blue); }
+.status-done { background: var(--green-light); color: var(--green-dark); }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty { text-align: center; padding: 2rem; color: var(--muted); }
+
+/* ── Hero / landing ──────────────────────────────────────────────────────── */
+.hero { text-align: center; padding: 2.5rem 1rem; }
+.hero h1 { font-size: 2.25rem; }
+.hero .cta { display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .card-row { flex-direction: column; }
+  .confirm-panel { flex-direction: column; }
+  .role-banner { margin-left: 0; width: 100%; }
+}

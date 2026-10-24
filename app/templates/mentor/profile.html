@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ mentor.name }} — Sprout{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-row">
+    <img class="avatar" src="{{ mentor.headshot_url }}" alt="{{ mentor.name }}">
+    <div style="flex:1;">
+      <h1 style="margin:.1rem 0;">{{ mentor.name }}
+        <span class="badge badge-{{ mentor.mentor_type }}">{{ mentor.mentor_type|capitalize }}</span>
+      </h1>
+      <p class="muted">{{ mentor.title }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
+      {% if mentor.bio_short %}<p>{{ mentor.bio_short }}</p>{% endif %}
+      {% if profile %}
+        <span class="badge badge-{{ profile.experience_level }}">{{ profile.experience_level|capitalize }}</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Impact</h2>
+  <p>{{ total_mentored }} student(s) mentored · {{ meetings_held }} meeting(s) held
+     · {{ current_students|length }} current · {{ past_students|length }} past</p>
+</div>
+
+{% if profile and profile.skill_scores %}
+<div class="card">
+  <h2>Technical background</h2>
+  <div class="chips">
+    {% for sid, conf in profile.skill_scores.items() %}
+      <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid }} <span class="conf">{{ (conf*100)|round|int }}%</span></span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Students</h2>
+  {% if current_students %}<p><strong>Current:</strong> {{ current_students|map(attribute='name')|join(", ") }}</p>{% endif %}
+  {% if past_students %}<p><strong>Past:</strong> {{ past_students|map(attribute='name')|join(", ") }}</p>{% endif %}
+  {% if not current_students and not past_students %}<p class="muted">No students yet.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Testimonials</h2>
+  {% if not testimonials %}<p class="muted">No testimonials yet.</p>{% endif %}
+  {% for item in testimonials %}
+    <blockquote style="border-left:3px solid var(--green);padding-left:1rem;margin:.75rem 0;">
+      "{{ item.t.text }}"
+      <footer class="muted sample-note">— {{ item.author.name if item.author else "A student" }} (sample data)</footer>
+    </blockquote>
+  {% endfor %}
+</div>
+{% endblock %}

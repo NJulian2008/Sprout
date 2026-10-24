@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Student Sign-up — Sprout{% endblock %}
+{% block content %}
+<h1>Find your mentor</h1>
+<p class="muted">A few quick questions. Nothing here asks for more than you'd share in a hallway chat.</p>
+
+<div class="progress">
+  <div class="progress-step active"></div>
+  <div class="progress-step active"></div>
+  <div class="progress-step active"></div>
+  <div class="progress-step active"></div>
+  <div class="progress-step active"></div>
+</div>
+
+<form method="post" action="/student/signup">
+  <div class="card">
+    <h3>1. Your goal</h3>
+    <div class="field">
+      <label for="goal_text">What do you want to achieve?</label>
+      <input type="text" name="goal_text" id="goal_text" required
+             placeholder="e.g. Build my first real machine learning project">
+    </div>
+    <div class="field">
+      <label>Goal type</label>
+      <div class="chips">
+        {% for val, lab in [("learn_skill","Learn a skill"),("build_project","Build a project"),("career_navigation","Career guidance"),("research","Research")] %}
+          <label class="chip chip-selectable">
+            <input type="radio" name="goal_type" value="{{ val }}" {% if loop.first %}checked{% endif %} style="display:none;">
+            {{ lab }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>2. Skills to learn &amp; cadence</h3>
+    <div class="field">
+      <label>Pick 1–5 skills you want to learn</label>
+      <input type="hidden" name="skills_to_learn" value="">
+      <div class="chips" id="skills-to-learn">
+        {% for sid, entry in taxonomy.items() %}
+          <span class="chip chip-selectable" data-skill="{{ sid }}">{{ entry.label }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="field">
+      <label>How often do you want to meet?</label>
+      <select name="cadence">
+        <option value="weekly">Weekly</option>
+        <option value="every_other_week">Every other week</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3. When are you free?</h3>
+    {% set current_avail = [] %}
+    {% include "partials/availability_grid.html" %}
+  </div>
+
+  <div class="card">
+    <h3>4. Resume or project (optional)</h3>
+    <p class="muted sample-note">We estimate your current skills and experience level from this. It's an AI estimate you can edit.</p>
+    <div class="field">
+      <textarea name="resume_text" id="student-resume" placeholder="Paste resume or project description..."></textarea>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm"
+            hx-post="/student/skills/extract"
+            hx-include="#student-resume"
+            hx-target="#skill-chips-result"
+            hx-swap="outerHTML">Find my skills</button>
+    {% set skill_scores = {} %}
+    {% set experience_level = "beginner" %}
+    {% set experience_score = 0 %}
+    {% set field_name = "skill_scores_json" %}
+    {% include "partials/skill_chips.html" %}
+  </div>
+
+  <div class="card">
+    <h3>5. Three things that matter most to you</h3>
+    <input type="hidden" name="top3" value="">
+    <div class="chips" id="priorities">
+      {% for val, lab in [("clear_feedback","Clear feedback"),("hands_on_building","Hands-on building"),("flexible_schedule","Flexible schedule"),("career_guidance","Career guidance"),("accountability","Accountability"),("casual_friendly","Casual & friendly"),("technical_depth","Technical depth"),("big_picture","Big picture")] %}
+        <span class="chip chip-selectable" data-priority="{{ val }}">{{ lab }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary">See my matches</button>
+  </div>
+</form>
+
+<script>
+// Goal-type radio chips
+document.querySelectorAll('#goal_text, body').forEach(function(){});
+document.querySelectorAll('.chip-selectable input[type=radio]').forEach(function(r){
+  r.closest('.chip-selectable').classList.toggle('selected', r.checked);
+  r.addEventListener('change', function(){
+    document.querySelectorAll('input[name="goal_type"]').forEach(function(x){
+      x.closest('.chip-selectable').classList.remove('selected');
+    });
+    r.closest('.chip-selectable').classList.add('selected');
+  });
+});
+// Multi-select skills (max 5)
+(function(){
+  var hidden = document.querySelector('input[name="skills_to_learn"]');
+  var selected = [];
+  document.querySelectorAll('#skills-to-learn .chip-selectable').forEach(function(c){
+    c.addEventListener('click', function(){
+      var s = c.getAttribute('data-skill');
+      if (c.classList.contains('selected')) {
+        c.classList.remove('selected'); selected = selected.filter(function(x){return x!==s;});
+      } else if (selected.length < 5) {
+        c.classList.add('selected'); selected.push(s);
+      }
+      hidden.value = selected.join(',');
+    });
+  });
+})();
+// Pick-3 priorities
+(function(){
+  var hidden = document.querySelector('input[name="top3"]');
+  var sel = [];
+  document.querySelectorAll('#priorities .chip-selectable').forEach(function(c){
+    c.addEventListener('click', function(){
+      var v = c.getAttribute('data-priority');
+      if (c.classList.contains('selected')) {
+        c.classList.remove('selected'); sel = sel.filter(function(x){return x!==v;});
+      } else if (sel.length < 3) {
+        c.classList.add('selected'); sel.push(v);
+      }
+      hidden.value = sel.join(',');
+    });
+  });
+})();
+</script>
+{% endblock %}

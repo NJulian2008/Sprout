@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Demo Panel — Sprout{% endblock %}
+{% block content %}
+<h1>Demo Operator Panel</h1>
+<p class="muted">Switch the active user, reset the database, or toggle the LLM mode.</p>
+
+<div class="card">
+  <h2>Role switcher</h2>
+  <form method="post" action="/demo/role" class="form-actions" style="align-items:flex-end;">
+    <div class="field" style="flex:1;margin:0;">
+      <label for="user_id">Act as</label>
+      <select name="user_id" id="user_id">
+        <optgroup label="Mentors">
+          {% for u in users if u.role == 'mentor' %}
+            <option value="{{ u.id }}" {% if current and current.id==u.id %}selected{% endif %}>{{ u.name }} — {{ u.title }}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Students">
+          {% for u in users if u.role == 'student' %}
+            <option value="{{ u.id }}" {% if current and current.id==u.id %}selected{% endif %}>{{ u.name }} — {{ u.major }}</option>
+          {% endfor %}
+        </optgroup>
+      </select>
+    </div>
+    <button class="btn btn-primary">Switch</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Database</h2>
+  <form method="post" action="/demo/reset">
+    <button class="btn btn-secondary">Reset to seed data</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>LLM mode</h2>
+  <p class="muted">Current: <strong>{{ llm_mode }}</strong></p>
+  <form method="post" action="/demo/llm_mode" class="form-actions">
+    <button class="btn btn-secondary" name="mode" value="off">Off (fallback)</button>
+    <button class="btn btn-secondary" name="mode" value="cached">Cached</button>
+    <button class="btn btn-secondary" name="mode" value="live">Live</button>
+  </form>
+</div>
+{% endblock %}
