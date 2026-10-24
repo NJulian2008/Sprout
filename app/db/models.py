@@ -20,9 +20,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
+
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
+
 
 class Base(DeclarativeBase):
     pass
@@ -31,6 +33,7 @@ class Base(DeclarativeBase):
 # ---------------------------------------------------------------------------
 # User
 # ---------------------------------------------------------------------------
+
 
 class User(Base):
     __tablename__ = "user"
@@ -52,34 +55,27 @@ class User(Base):
 # MentorProfile
 # ---------------------------------------------------------------------------
 
+
 class MentorProfile(Base):
     __tablename__ = "mentorprofile"
 
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id"), primary_key=True
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), primary_key=True)
     resume_text: Mapped[str] = mapped_column(String, default="")
-    skill_scores: Mapped[dict] = mapped_column(
-        MutableDict.as_mutable(JSON), default=dict
-    )
+    skill_scores: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
     experience_score: Mapped[float] = mapped_column(default=0.0)
     experience_level: Mapped[str] = mapped_column(String, default="intermediate")
     additional_experiences: Mapped[str] = mapped_column(String, default="")
-    outcomes: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
-    availability: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
-    top3: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
+    specialties: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
+    outcomes: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
+    availability: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
+    top3: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     max_students: Mapped[int] = mapped_column(default=2)
 
 
 # ---------------------------------------------------------------------------
 # StudentRequest
 # ---------------------------------------------------------------------------
+
 
 class StudentRequest(Base):
     __tablename__ = "studentrequest"
@@ -88,20 +84,13 @@ class StudentRequest(Base):
     student_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     goal_text: Mapped[str] = mapped_column(String, nullable=False)
     goal_type: Mapped[str] = mapped_column(String, nullable=False)
-    skills_to_learn: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
+    specialty: Mapped[str] = mapped_column(String, default="computer_science")
+    skills_to_learn: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     cadence: Mapped[str] = mapped_column(String, default="weekly")
-    availability: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
-    top3: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
+    availability: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
+    top3: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     resume_text: Mapped[str] = mapped_column(String, default="")
-    skill_scores: Mapped[dict] = mapped_column(
-        MutableDict.as_mutable(JSON), default=dict
-    )
+    skill_scores: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
     experience_score: Mapped[float] = mapped_column(default=0.0)
     experience_level: Mapped[str] = mapped_column(String, default="beginner")
     project_title: Mapped[str] = mapped_column(String, default="")
@@ -114,19 +103,16 @@ class StudentRequest(Base):
 # Match
 # ---------------------------------------------------------------------------
 
+
 class Match(Base):
     __tablename__ = "match"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    request_id: Mapped[int] = mapped_column(
-        ForeignKey("studentrequest.id"), nullable=False
-    )
+    request_id: Mapped[int] = mapped_column(ForeignKey("studentrequest.id"), nullable=False)
     mentor_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     rank: Mapped[int] = mapped_column(nullable=False)
     score: Mapped[float] = mapped_column(nullable=False)
-    score_breakdown: Mapped[dict] = mapped_column(
-        MutableDict.as_mutable(JSON), default=dict
-    )
+    score_breakdown: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
     explanation: Mapped[str] = mapped_column(String, default="")
     source: Mapped[str] = mapped_column(String, default="fallback")
 
@@ -135,15 +121,14 @@ class Match(Base):
 # Mentorship
 # ---------------------------------------------------------------------------
 
+
 class Mentorship(Base):
     __tablename__ = "mentorship"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     mentor_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
-    request_id: Mapped[int] = mapped_column(
-        ForeignKey("studentrequest.id"), nullable=False
-    )
+    request_id: Mapped[int] = mapped_column(ForeignKey("studentrequest.id"), nullable=False)
     status: Mapped[str] = mapped_column(String, default="requested")
     note_from_student: Mapped[str] = mapped_column(String, default="")
     cadence: Mapped[str] = mapped_column(String, default="weekly")
@@ -158,36 +143,30 @@ class Mentorship(Base):
 # Meeting
 # ---------------------------------------------------------------------------
 
+
 class Meeting(Base):
     __tablename__ = "meeting"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    mentorship_id: Mapped[int] = mapped_column(
-        ForeignKey("mentorship.id"), nullable=False
-    )
+    mentorship_id: Mapped[int] = mapped_column(ForeignKey("mentorship.id"), nullable=False)
     number: Mapped[int] = mapped_column(nullable=False)
     agreed_time_text: Mapped[str] = mapped_column(String, default="")
     status: Mapped[str] = mapped_column(String, default="scheduled")
-    progress_notes: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
+    progress_notes: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     summary: Mapped[str] = mapped_column(String, default="")
-    next_deliverable_ids: Mapped[list] = mapped_column(
-        MutableList.as_mutable(JSON), default=list
-    )
+    next_deliverable_ids: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
 
 
 # ---------------------------------------------------------------------------
 # Deliverable
 # ---------------------------------------------------------------------------
 
+
 class Deliverable(Base):
     __tablename__ = "deliverable"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    mentorship_id: Mapped[int] = mapped_column(
-        ForeignKey("mentorship.id"), nullable=False
-    )
+    mentorship_id: Mapped[int] = mapped_column(ForeignKey("mentorship.id"), nullable=False)
     text: Mapped[str] = mapped_column(String, nullable=False)
     mentor_annotation: Mapped[str] = mapped_column(String, default="")
     status: Mapped[str] = mapped_column(String, default="proposed")
@@ -198,13 +177,12 @@ class Deliverable(Base):
 # Testimonial
 # ---------------------------------------------------------------------------
 
+
 class Testimonial(Base):
     __tablename__ = "testimonial"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    mentorship_id: Mapped[int] = mapped_column(
-        ForeignKey("mentorship.id"), nullable=False
-    )
+    mentorship_id: Mapped[int] = mapped_column(ForeignKey("mentorship.id"), nullable=False)
     student_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     mentor_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     text: Mapped[str] = mapped_column(String, nullable=False)
@@ -215,13 +193,12 @@ class Testimonial(Base):
 # Message
 # ---------------------------------------------------------------------------
 
+
 class Message(Base):
     __tablename__ = "message"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    mentorship_id: Mapped[int] = mapped_column(
-        ForeignKey("mentorship.id"), nullable=False
-    )
+    mentorship_id: Mapped[int] = mapped_column(ForeignKey("mentorship.id"), nullable=False)
     sender_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
     text: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
@@ -230,6 +207,7 @@ class Message(Base):
 # ---------------------------------------------------------------------------
 # LLMCache
 # ---------------------------------------------------------------------------
+
 
 class LLMCache(Base):
     __tablename__ = "llmcache"

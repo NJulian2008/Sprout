@@ -6,9 +6,26 @@ without touching service logic (spec D12).
 """
 
 # ── Overall score weights (must sum to 1.0) ──────────────────────────────────
-WEIGHT_SKILLS_FIT: float = 0.45
+WEIGHT_SKILLS_FIT: float = 0.25
 WEIGHT_OUTCOME_FIT: float = 0.30
 WEIGHT_AVAIL_FIT: float = 0.25
+WEIGHT_SPECIALTY_FIT: float = 0.20
+
+CS_ENGINEERING_SPECIALTIES = {
+    "computer_science": "Computer science / software",
+    "artificial_intelligence": "Artificial intelligence / data science",
+    "automotive": "Automotive",
+    "aerospace": "Aerospace",
+    "electrical": "Electrical",
+    "industrial": "Industrial",
+    "civil": "Civil",
+    "mechanical": "Mechanical",
+    "chemical": "Chemical",
+    "biomedical": "Biomedical",
+    "environmental": "Environmental",
+    "materials": "Materials",
+    "robotics_controls": "Robotics / controls",
+}
 
 # ── skills_fit sub-weights (must sum to 1.0) ─────────────────────────────────
 SKILLS_FIT_COVERAGE_WEIGHT: float = 0.7

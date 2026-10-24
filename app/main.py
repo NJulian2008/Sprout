@@ -8,6 +8,7 @@ Sets up:
 - Router registration (demo, api, pages)
 - Table creation on startup
 """
+
 from __future__ import annotations
 
 import logging
@@ -16,6 +17,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db.models import Base
@@ -36,6 +38,25 @@ class NotFound(Exception):
 async def lifespan(app: FastAPI):
     # Create tables on startup if they do not exist yet.
     Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        mentor_columns = {
+            column["name"] for column in inspect(connection).get_columns("mentorprofile")
+        }
+        if "specialties" not in mentor_columns:
+            connection.execute(
+                text("ALTER TABLE mentorprofile ADD COLUMN specialties JSON NOT NULL DEFAULT '[]'")
+            )
+
+        request_columns = {
+            column["name"] for column in inspect(connection).get_columns("studentrequest")
+        }
+        if "specialty" not in request_columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE studentrequest ADD COLUMN specialty VARCHAR NOT NULL "
+                    "DEFAULT 'computer_science'"
+                )
+            )
     logger.info("Sprout startup complete (LLM_MODE=%s)", settings.llm_mode)
     yield
 
@@ -48,6 +69,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 # ── Exception handlers ────────────────────────────────────────────────────────
+
 
 @app.exception_handler(InvalidTransition)
 async def invalid_transition_handler(request: Request, exc: InvalidTransition):

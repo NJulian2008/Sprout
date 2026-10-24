@@ -4,6 +4,7 @@
 <h1>Your top 3 mentors</h1>
 {% if req %}
 <p class="muted">For your goal: <strong>{{ req.goal_text }}</strong> ·
+  {{ req.specialty|replace("_", " ")|title }} ·
   your level: <span class="badge badge-{{ req.experience_level }}">{{ req.experience_level|capitalize }}</span></p>
 {% endif %}
 

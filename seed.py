@@ -12,6 +12,7 @@ Usage:
 The module is also imported by app.db.session.reset_db() via a deferred import
 to avoid circular-import issues.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -37,6 +38,7 @@ from app.services.skills import experience_level
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -82,6 +84,7 @@ STUDENT_COLOR = "#7c3aed"
 # Main seed function
 # ---------------------------------------------------------------------------
 
+
 def seed() -> None:  # noqa: PLR0915
     """Populate the database with demo data and generate SVG avatars."""
 
@@ -108,12 +111,24 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "faculty",
             "bio_short": "ML researcher and educator. I love helping students publish their first paper.",
             "skill_scores": {
-                "python": 0.9, "machine_learning": 1.0, "deep_learning": 0.9,
-                "nlp": 0.85, "data_analysis": 0.8, "statistics": 0.85,
-                "research": 0.9, "pytorch": 0.8, "tensorflow": 0.7,
+                "python": 0.9,
+                "machine_learning": 1.0,
+                "deep_learning": 0.9,
+                "nlp": 0.85,
+                "data_analysis": 0.8,
+                "statistics": 0.85,
+                "research": 0.9,
+                "pytorch": 0.8,
+                "tensorflow": 0.7,
             },
             "outcomes": ["learn_skill", "research"],
-            "availability": ["Mon-Morning", "Mon-Evening", "Wed-Morning", "Wed-Evening", "Fri-Morning"],
+            "availability": [
+                "Mon-Morning",
+                "Mon-Evening",
+                "Wed-Morning",
+                "Wed-Evening",
+                "Fri-Morning",
+            ],
             "top3": ["technical_depth", "clear_feedback", "big_picture"],
             "max_students": 2,
         },
@@ -125,9 +140,17 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "industry",
             "bio_short": "10 years building production systems. I help students ship real software.",
             "skill_scores": {
-                "python": 0.9, "javascript": 0.7, "react": 0.6, "nodejs": 0.6,
-                "sql": 0.8, "docker": 0.8, "aws": 0.75, "system_design": 0.85,
-                "rest_api": 0.8, "git": 0.9, "cicd": 0.7,
+                "python": 0.9,
+                "javascript": 0.7,
+                "react": 0.6,
+                "nodejs": 0.6,
+                "sql": 0.8,
+                "docker": 0.8,
+                "aws": 0.75,
+                "system_design": 0.85,
+                "rest_api": 0.8,
+                "git": 0.9,
+                "cicd": 0.7,
             },
             "outcomes": ["build_project", "career_navigation"],
             "availability": ["Tue-Evening", "Thu-Evening", "Sat-Morning", "Sat-Afternoon"],
@@ -142,9 +165,15 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "industry",
             "bio_short": "Building production ML systems at scale. Love mentoring the next generation.",
             "skill_scores": {
-                "python": 0.9, "machine_learning": 0.9, "deep_learning": 0.8,
-                "tensorflow": 0.85, "data_analysis": 0.75, "statistics": 0.7,
-                "computer_vision": 0.8, "numpy": 0.8, "pandas": 0.75,
+                "python": 0.9,
+                "machine_learning": 0.9,
+                "deep_learning": 0.8,
+                "tensorflow": 0.85,
+                "data_analysis": 0.75,
+                "statistics": 0.7,
+                "computer_vision": 0.8,
+                "numpy": 0.8,
+                "pandas": 0.75,
             },
             "outcomes": ["learn_skill", "build_project"],
             "availability": ["Mon-Evening", "Tue-Evening", "Wed-Evening", "Thu-Evening"],
@@ -159,12 +188,23 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "industry",
             "bio_short": "Bridging tech and business. I help engineers transition into PM roles.",
             "skill_scores": {
-                "product_management": 0.85, "agile": 0.8, "project_management": 0.75,
-                "system_design": 0.6, "sql": 0.5, "python": 0.4,
-                "ux_design": 0.65, "technical_writing": 0.7,
+                "product_management": 0.85,
+                "agile": 0.8,
+                "project_management": 0.75,
+                "system_design": 0.6,
+                "sql": 0.5,
+                "python": 0.4,
+                "ux_design": 0.65,
+                "technical_writing": 0.7,
             },
             "outcomes": ["career_navigation", "build_project"],
-            "availability": ["Mon-Morning", "Tue-Morning", "Wed-Morning", "Thu-Morning", "Fri-Morning"],
+            "availability": [
+                "Mon-Morning",
+                "Tue-Morning",
+                "Wed-Morning",
+                "Thu-Morning",
+                "Fri-Morning",
+            ],
             "top3": ["big_picture", "career_guidance", "clear_feedback"],
             "max_students": 2,
         },
@@ -176,9 +216,15 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "faculty",
             "bio_short": "Data science educator. I make statistics and ML accessible to everyone.",
             "skill_scores": {
-                "python": 0.8, "data_analysis": 0.9, "statistics": 0.9,
-                "machine_learning": 0.75, "pandas": 0.85, "numpy": 0.8,
-                "sql": 0.7, "research": 0.8, "probability": 0.85,
+                "python": 0.8,
+                "data_analysis": 0.9,
+                "statistics": 0.9,
+                "machine_learning": 0.75,
+                "pandas": 0.85,
+                "numpy": 0.8,
+                "sql": 0.7,
+                "research": 0.8,
+                "probability": 0.85,
             },
             "outcomes": ["learn_skill", "research"],
             "availability": ["Tue-Morning", "Thu-Morning", "Tue-Evening", "Thu-Evening"],
@@ -193,9 +239,15 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "industry",
             "bio_short": "Automating everything. I help students understand modern cloud infrastructure.",
             "skill_scores": {
-                "docker": 0.9, "aws": 0.85, "cicd": 0.9, "linux": 0.85,
-                "python": 0.65, "bash": 0.8, "kubernetes": 0.8,
-                "networking": 0.7, "git": 0.8,
+                "docker": 0.9,
+                "aws": 0.85,
+                "cicd": 0.9,
+                "linux": 0.85,
+                "python": 0.65,
+                "bash": 0.8,
+                "kubernetes": 0.8,
+                "networking": 0.7,
+                "git": 0.8,
             },
             "outcomes": ["build_project", "learn_skill"],
             "availability": ["Mon-Evening", "Wed-Evening", "Fri-Evening", "Sat-Morning"],
@@ -210,9 +262,14 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "faculty",
             "bio_short": "HCI researcher focused on accessibility and inclusive design.",
             "skill_scores": {
-                "ux_design": 0.9, "figma": 0.85, "research": 0.8,
-                "technical_writing": 0.75, "html": 0.6, "css": 0.65,
-                "javascript": 0.5, "product_management": 0.6,
+                "ux_design": 0.9,
+                "figma": 0.85,
+                "research": 0.8,
+                "technical_writing": 0.75,
+                "html": 0.6,
+                "css": 0.65,
+                "javascript": 0.5,
+                "product_management": 0.6,
             },
             "outcomes": ["learn_skill", "build_project"],
             "availability": ["Mon-Morning", "Wed-Morning", "Mon-Evening", "Wed-Evening"],
@@ -227,8 +284,15 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_type": "industry",
             "bio_short": "OSU alum who went indie. I help students build their first portfolio projects.",
             "skill_scores": {
-                "python": 0.6, "javascript": 0.7, "react": 0.65, "nodejs": 0.6,
-                "html": 0.75, "css": 0.7, "sql": 0.55, "git": 0.7, "rest_api": 0.6,
+                "python": 0.6,
+                "javascript": 0.7,
+                "react": 0.65,
+                "nodejs": 0.6,
+                "html": 0.75,
+                "css": 0.7,
+                "sql": 0.55,
+                "git": 0.7,
+                "rest_api": 0.6,
             },
             "outcomes": ["build_project", "learn_skill"],
             "availability": ["Tue-Evening", "Thu-Evening", "Fri-Evening", "Sat-Evening"],
@@ -249,6 +313,16 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
         8: 0.55,
     }
 
+    specialties_by_mentor = {
+        1: ["computer_science", "artificial_intelligence"],
+        2: ["automotive", "computer_science"],
+        3: ["artificial_intelligence", "computer_science"],
+        4: ["computer_science", "industrial"],
+        5: ["artificial_intelligence", "computer_science"],
+        6: ["computer_science", "industrial"],
+        7: ["computer_science"],
+        8: ["computer_science"],
+    }
     for m in mentors_data:
         user = User(
             id=m["id"],
@@ -274,6 +348,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             skill_scores=m["skill_scores"],
             experience_score=exp_s,
             experience_level=experience_level(exp_s),
+            specialties=specialties_by_mentor[m["id"]],
             outcomes=m["outcomes"],
             availability=m["availability"],
             top3=m["top3"],
@@ -328,8 +403,13 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "goal_type": "build_project",
             "skills_to_learn": ["machine_learning", "deep_learning", "system_design"],
             "skill_scores": {
-                "python": 0.8, "machine_learning": 0.7, "data_analysis": 0.75,
-                "sql": 0.7, "git": 0.8, "docker": 0.65, "statistics": 0.7,
+                "python": 0.8,
+                "machine_learning": 0.7,
+                "data_analysis": 0.75,
+                "sql": 0.7,
+                "git": 0.8,
+                "docker": 0.65,
+                "statistics": 0.7,
             },
             "experience_score": 0.75,
             "experience_level": "advanced",
@@ -379,8 +459,11 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "goal_type": "career_navigation",
             "skills_to_learn": ["product_management", "ux_design", "agile"],
             "skill_scores": {
-                "python": 0.6, "javascript": 0.5, "git": 0.65,
-                "sql": 0.5, "agile": 0.4,
+                "python": 0.6,
+                "javascript": 0.5,
+                "git": 0.65,
+                "sql": 0.5,
+                "agile": 0.4,
             },
             "experience_score": 0.55,
             "experience_level": "intermediate",
@@ -519,7 +602,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
     # Mentorship 1: Marcus ↔ Jordan — active, mid-flight (started 14 days ago)
     ms1 = Mentorship(
         id=1,
-        mentor_id=2,   # Marcus Johnson
+        mentor_id=2,  # Marcus Johnson
         student_id=11,  # Jordan Lee
         request_id=jordan_request_id,
         status="active",
@@ -534,7 +617,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
     # Mentorship 2: Emily ↔ Chris — intro held, awaiting confirmation
     ms2 = Mentorship(
         id=2,
-        mentor_id=5,   # Dr. Emily Watson
+        mentor_id=5,  # Dr. Emily Watson
         student_id=13,  # Chris Kim
         request_id=chris_request_id,
         status="intro_held",
@@ -547,7 +630,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
     # Mentorship 3: Sarah ↔ Zoe — completed (60 days ago → 10 days ago)
     ms3 = Mentorship(
         id=3,
-        mentor_id=1,   # Dr. Sarah Chen
+        mentor_id=1,  # Dr. Sarah Chen
         student_id=14,  # Zoe Martinez
         request_id=zoe_request_id,
         status="completed",
@@ -752,8 +835,8 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
         Testimonial(
             id=1,
             mentorship_id=3,
-            student_id=14,   # Zoe Martinez
-            mentor_id=1,     # Dr. Sarah Chen
+            student_id=14,  # Zoe Martinez
+            mentor_id=1,  # Dr. Sarah Chen
             text=(
                 "Dr. Chen completely changed how I think about research problems. "
                 "Her feedback was direct and she genuinely cared about my growth. "
@@ -785,9 +868,15 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_id": "3",
             "mentor_name": "Priya Patel",
             "skill_scores": {
-                "python": 0.9, "machine_learning": 0.9, "deep_learning": 0.8,
-                "tensorflow": 0.85, "data_analysis": 0.75, "statistics": 0.7,
-                "computer_vision": 0.8, "numpy": 0.8, "pandas": 0.75,
+                "python": 0.9,
+                "machine_learning": 0.9,
+                "deep_learning": 0.8,
+                "tensorflow": 0.85,
+                "data_analysis": 0.75,
+                "statistics": 0.7,
+                "computer_vision": 0.8,
+                "numpy": 0.8,
+                "pandas": 0.75,
             },
             "experience_score": 0.78,
             "experience_level": "advanced",
@@ -801,14 +890,26 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_id": "1",
             "mentor_name": "Dr. Sarah Chen",
             "skill_scores": {
-                "python": 0.9, "machine_learning": 1.0, "deep_learning": 0.9,
-                "nlp": 0.85, "data_analysis": 0.8, "statistics": 0.85,
-                "research": 0.9, "pytorch": 0.8, "tensorflow": 0.7,
+                "python": 0.9,
+                "machine_learning": 1.0,
+                "deep_learning": 0.9,
+                "nlp": 0.85,
+                "data_analysis": 0.8,
+                "statistics": 0.85,
+                "research": 0.9,
+                "pytorch": 0.8,
+                "tensorflow": 0.7,
             },
             "experience_score": 0.9,
             "experience_level": "advanced",
             "outcomes": ["learn_skill", "research"],
-            "availability": ["Mon-Morning", "Mon-Evening", "Wed-Morning", "Wed-Evening", "Fri-Morning"],
+            "availability": [
+                "Mon-Morning",
+                "Mon-Evening",
+                "Wed-Morning",
+                "Wed-Evening",
+                "Fri-Morning",
+            ],
             "shared_skills": ["python", "machine_learning", "data_analysis"],
             "student_level": "beginner",
             "overlap_summary": "Mon/Wed evenings",
@@ -817,9 +918,15 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "mentor_id": "5",
             "mentor_name": "Dr. Emily Watson",
             "skill_scores": {
-                "python": 0.8, "data_analysis": 0.9, "statistics": 0.9,
-                "machine_learning": 0.75, "pandas": 0.85, "numpy": 0.8,
-                "sql": 0.7, "research": 0.8, "probability": 0.85,
+                "python": 0.8,
+                "data_analysis": 0.9,
+                "statistics": 0.9,
+                "machine_learning": 0.75,
+                "pandas": 0.85,
+                "numpy": 0.8,
+                "sql": 0.7,
+                "research": 0.8,
+                "probability": 0.85,
             },
             "experience_score": 0.74,
             "experience_level": "advanced",
@@ -839,37 +946,39 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
     )
     llm_cache_key = _cache_key(RERANK_SYSTEM, rerank_prompt)
 
-    llm_response = json.dumps({
-        "matches": [
-            {
-                "mentor_id": "3",
-                "rank": 1,
-                "explanation": (
-                    "Priya is an intermediate-to-advanced ML engineer at Google with strong "
-                    "Python and machine learning skills — exactly what you want to learn. "
-                    "She's free most evenings, which overlaps perfectly with your schedule."
-                ),
-            },
-            {
-                "mentor_id": "1",
-                "rank": 2,
-                "explanation": (
-                    "Dr. Chen is an expert in machine learning and NLP with a decade of "
-                    "research experience. As a professor, she's skilled at teaching concepts "
-                    "from the ground up, and your Monday/Wednesday evenings overlap."
-                ),
-            },
-            {
-                "mentor_id": "5",
-                "rank": 3,
-                "explanation": (
-                    "Dr. Watson's data science background and teaching style make her an "
-                    "ideal step ahead of your beginner level — she'll stretch you without "
-                    "leaving you behind. Your Tuesday and Thursday evenings align well."
-                ),
-            },
-        ]
-    })
+    llm_response = json.dumps(
+        {
+            "matches": [
+                {
+                    "mentor_id": "3",
+                    "rank": 1,
+                    "explanation": (
+                        "Priya is an intermediate-to-advanced ML engineer at Google with strong "
+                        "Python and machine learning skills — exactly what you want to learn. "
+                        "She's free most evenings, which overlaps perfectly with your schedule."
+                    ),
+                },
+                {
+                    "mentor_id": "1",
+                    "rank": 2,
+                    "explanation": (
+                        "Dr. Chen is an expert in machine learning and NLP with a decade of "
+                        "research experience. As a professor, she's skilled at teaching concepts "
+                        "from the ground up, and your Monday/Wednesday evenings overlap."
+                    ),
+                },
+                {
+                    "mentor_id": "5",
+                    "rank": 3,
+                    "explanation": (
+                        "Dr. Watson's data science background and teaching style make her an "
+                        "ideal step ahead of your beginner level — she'll stretch you without "
+                        "leaving you behind. Your Tuesday and Thursday evenings align well."
+                    ),
+                },
+            ]
+        }
+    )
 
     db.add(LLMCache(key=llm_cache_key, response=llm_response))
 
@@ -885,21 +994,21 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
 
     avatar_users = [
         # Mentors
-        {"id": 1, "initials": "SC", "color": FACULTY_COLOR},    # Dr. Sarah Chen
-        {"id": 2, "initials": "MJ", "color": INDUSTRY_COLOR},   # Marcus Johnson
-        {"id": 3, "initials": "PP", "color": INDUSTRY_COLOR},   # Priya Patel
-        {"id": 4, "initials": "JR", "color": INDUSTRY_COLOR},   # James Rodriguez
-        {"id": 5, "initials": "EW", "color": FACULTY_COLOR},    # Dr. Emily Watson
-        {"id": 6, "initials": "KP", "color": INDUSTRY_COLOR},   # Kevin Park
-        {"id": 7, "initials": "AW", "color": FACULTY_COLOR},    # Dr. Aisha Williams
-        {"id": 8, "initials": "DK", "color": INDUSTRY_COLOR},   # David Kim
+        {"id": 1, "initials": "SC", "color": FACULTY_COLOR},  # Dr. Sarah Chen
+        {"id": 2, "initials": "MJ", "color": INDUSTRY_COLOR},  # Marcus Johnson
+        {"id": 3, "initials": "PP", "color": INDUSTRY_COLOR},  # Priya Patel
+        {"id": 4, "initials": "JR", "color": INDUSTRY_COLOR},  # James Rodriguez
+        {"id": 5, "initials": "EW", "color": FACULTY_COLOR},  # Dr. Emily Watson
+        {"id": 6, "initials": "KP", "color": INDUSTRY_COLOR},  # Kevin Park
+        {"id": 7, "initials": "AW", "color": FACULTY_COLOR},  # Dr. Aisha Williams
+        {"id": 8, "initials": "DK", "color": INDUSTRY_COLOR},  # David Kim
         # Students
-        {"id": 9,  "initials": "MO", "color": STUDENT_COLOR},   # Maya Okonkwo
-        {"id": 10, "initials": "AT", "color": STUDENT_COLOR},   # Alex Torres
-        {"id": 11, "initials": "JL", "color": STUDENT_COLOR},   # Jordan Lee
-        {"id": 12, "initials": "SR", "color": STUDENT_COLOR},   # Sam Rivera
-        {"id": 13, "initials": "CK", "color": STUDENT_COLOR},   # Chris Kim
-        {"id": 14, "initials": "ZM", "color": STUDENT_COLOR},   # Zoe Martinez
+        {"id": 9, "initials": "MO", "color": STUDENT_COLOR},  # Maya Okonkwo
+        {"id": 10, "initials": "AT", "color": STUDENT_COLOR},  # Alex Torres
+        {"id": 11, "initials": "JL", "color": STUDENT_COLOR},  # Jordan Lee
+        {"id": 12, "initials": "SR", "color": STUDENT_COLOR},  # Sam Rivera
+        {"id": 13, "initials": "CK", "color": STUDENT_COLOR},  # Chris Kim
+        {"id": 14, "initials": "ZM", "color": STUDENT_COLOR},  # Zoe Martinez
     ]
     _write_avatars(avatar_users)
 

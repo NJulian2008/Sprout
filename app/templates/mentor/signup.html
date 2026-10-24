@@ -21,6 +21,19 @@
   </div>
 
   <div class="card">
+    <h3>Industry and specialties</h3>
+    <p class="muted sample-note">Choose the CS or engineering fields where you can mentor students.</p>
+    <div class="field">
+      <label for="mentor-specialties">Areas of expertise</label>
+      <select name="specialties" id="mentor-specialties" multiple required>
+        {% for value, label in specialties.items() %}
+          <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
     <h3>Your skills</h3>
     <p class="muted sample-note">Paste your resume or LinkedIn text. AI estimates a confidence for each skill — edit freely.</p>
     <div class="field">

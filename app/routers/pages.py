@@ -8,14 +8,18 @@ Covers:
 - Mentorship workspace + all workspace actions
 - Availability grid
 """
+
 from __future__ import annotations
 
 import json
+from io import BytesIO
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from app.config_constants import CS_ENGINEERING_SPECIALTIES
 from app.db.models import (
     Deliverable,
     Match,
@@ -39,11 +43,53 @@ router = APIRouter()
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 def _parse_multi(form_value: str | None) -> list[str]:
     """Parse a comma-separated hidden field into a clean list."""
     if not form_value:
         return []
     return [v.strip() for v in form_value.split(",") if v.strip()]
+
+
+def _resume_text_from_upload(upload: UploadFile) -> str:
+    """Extract text from a supported resume upload."""
+    suffix = Path(upload.filename or "").suffix.lower()
+    content = upload.file.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="The uploaded resume is empty.")
+
+    try:
+        if suffix == ".txt":
+            text = content.decode("utf-8-sig")
+        elif suffix == ".pdf":
+            from pypdf import PdfReader
+
+            reader = PdfReader(BytesIO(content))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        elif suffix == ".docx":
+            from docx import Document
+
+            document = Document(BytesIO(content))
+            text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail="Upload your resume as a PDF, DOCX, or TXT file.",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="We couldn't read that resume file. Try a text-based PDF or TXT file.",
+        ) from exc
+
+    if not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="No readable text was found in the resume file.",
+        )
+    return text
 
 
 def _mentor_to_candidate(profile: MentorProfile, active_students: int = 0) -> MentorCandidate:
@@ -55,6 +101,7 @@ def _mentor_to_candidate(profile: MentorProfile, active_students: int = 0) -> Me
         availability=list(profile.availability),
         active_students=active_students,
         max_students=profile.max_students,
+        specialties=list(profile.specialties),
     )
 
 
@@ -68,6 +115,7 @@ def _active_student_count(db: Session, mentor_id: int) -> int:
 
 # ── Landing ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/")
 def landing(request: Request, db: Session = Depends(get_session)):
     return render(
@@ -78,6 +126,7 @@ def landing(request: Request, db: Session = Depends(get_session)):
 
 # ── Student signup + matches ──────────────────────────────────────────────────
 
+
 @router.get("/student/signup")
 def student_signup_form(request: Request, db: Session = Depends(get_session)):
     return render(
@@ -86,6 +135,7 @@ def student_signup_form(request: Request, db: Session = Depends(get_session)):
             "request": request,
             "current": current_user(request, db),
             "taxonomy": load_taxonomy(),
+            "specialties": CS_ENGINEERING_SPECIALTIES,
         },
     )
 
@@ -96,38 +146,36 @@ def student_signup_submit(
     db: Session = Depends(get_session),
     name: str = Form("Demo Student"),
     goal_text: str = Form(...),
-    goal_type: str = Form(...),
-    skills_to_learn: str = Form(""),
+    specialty: str = Form(...),
     cadence: str = Form("weekly"),
     availability: str = Form(""),
     top3: str = Form(""),
-    resume_text: str = Form(""),
-    skill_scores_json: str = Form("{}"),
+    resume_file: UploadFile = File(...),
 ):
+    resume_text = _resume_text_from_upload(resume_file)
+    if not resume_text.strip():
+        raise HTTPException(status_code=422, detail="Resume text is required.")
+    if not goal_text.strip():
+        raise HTTPException(status_code=422, detail="Goal is required.")
+    if specialty not in CS_ENGINEERING_SPECIALTIES:
+        raise HTTPException(status_code=422, detail="Choose a valid CS or engineering specialty.")
+
     # Build the student user
     user = User(role="student", name=name, headshot_url="/static/avatars/avatar_9.svg")
     db.add(user)
     db.flush()
 
-    # Determine current skill scores: use posted edits, else extract from resume
-    try:
-        posted_scores = json.loads(skill_scores_json) if skill_scores_json else {}
-    except json.JSONDecodeError:
-        posted_scores = {}
-
-    if posted_scores:
-        scores = {k: float(v) for k, v in posted_scores.items()}
-    elif resume_text.strip():
-        scores = extract_skills(resume_text, db)
-    else:
-        scores = {}
+    scores = extract_skills(resume_text, db)
+    goal_skills = extract_skills(goal_text, db)
+    goal_type = _infer_goal_type(goal_text)
 
     exp_s = experience_score(scores)
     req = StudentRequest(
         student_id=user.id,
         goal_text=goal_text,
         goal_type=goal_type,
-        skills_to_learn=_parse_multi(skills_to_learn),
+        specialty=specialty,
+        skills_to_learn=list(goal_skills),
         cadence=cadence,
         availability=_parse_multi(availability),
         top3=_parse_multi(top3),
@@ -148,6 +196,17 @@ def student_signup_submit(
     return RedirectResponse(url="/student/matches", status_code=303)
 
 
+def _infer_goal_type(goal_text: str) -> str:
+    text = goal_text.lower()
+    if any(word in text for word in ("research", "thesis", "publish", "paper")):
+        return "research"
+    if any(word in text for word in ("career", "job", "internship", "interview", "role")):
+        return "career_navigation"
+    if any(word in text for word in ("build", "create", "develop", "make", "project", "prototype")):
+        return "build_project"
+    return "learn_skill"
+
+
 def _run_matching(db: Session, req: StudentRequest) -> None:
     """Score mentors, pick top 3, write Match rows (with LLM rerank + fallback)."""
     student = StudentProfile(
@@ -157,12 +216,10 @@ def _run_matching(db: Session, req: StudentRequest) -> None:
         skill_scores=dict(req.skill_scores),
         experience_score=req.experience_score,
         availability=list(req.availability),
+        specialty=req.specialty,
     )
     profiles = db.query(MentorProfile).all()
-    candidates = [
-        _mentor_to_candidate(p, _active_student_count(db, p.user_id))
-        for p in profiles
-    ]
+    candidates = [_mentor_to_candidate(p, _active_student_count(db, p.user_id)) for p in profiles]
     ranked = rank(student, candidates)
     top5 = ranked[:5]
 
@@ -171,32 +228,31 @@ def _run_matching(db: Session, req: StudentRequest) -> None:
     cand_payload = []
     for cand, score, _breakdown in top5:
         u = users_by_id.get(cand.id)
-        shared = [
-            s for s in student.skills_to_learn
-            if cand.skill_scores.get(s, 0.0) >= 0.5
-        ]
-        cand_payload.append({
-            "mentor_id": str(cand.id),
-            "mentor_name": u.name if u else f"Mentor {cand.id}",
-            "experience_level": experience_level(cand.experience_score),
-            "student_level": req.experience_level,
-            "shared_skills": shared,
-            "overlap_summary": ", ".join(
-                sorted(set(student.availability) & set(cand.availability))
-            ) or "by arrangement",
-            "score": score,
-        })
+        shared = [s for s in student.skills_to_learn if cand.skill_scores.get(s, 0.0) >= 0.5]
+        cand_payload.append(
+            {
+                "mentor_id": str(cand.id),
+                "mentor_name": u.name if u else f"Mentor {cand.id}",
+                "experience_level": experience_level(cand.experience_score),
+                "student_level": req.experience_level,
+                "shared_skills": shared,
+                "overlap_summary": ", ".join(
+                    sorted(set(student.availability) & set(cand.availability))
+                )
+                or "by arrangement",
+                "score": score,
+            }
+        )
     student_payload = {
         "goal": req.goal_text,
         "goal_type": req.goal_type,
+        "specialty": req.specialty,
         "skills_to_learn": student.skills_to_learn,
         "experience_level": req.experience_level,
         "availability": student.availability,
     }
 
-    explanations = rerank_and_explain(
-        json.dumps(student_payload), json.dumps(cand_payload), db
-    )
+    explanations = rerank_and_explain(json.dumps(student_payload), json.dumps(cand_payload), db)
     source = "cached" if explanations else "fallback"
 
     # Map explanations by mentor_id; fall back to top-3 by score
@@ -222,15 +278,17 @@ def _run_matching(db: Session, req: StudentRequest) -> None:
     # Clear any prior matches for this request, then write new ones
     db.query(Match).filter(Match.request_id == req.id).delete()
     for i, (mentor_id, score, breakdown, expl) in enumerate(final, start=1):
-        db.add(Match(
-            request_id=req.id,
-            mentor_id=mentor_id,
-            rank=i,
-            score=round(score, 2),
-            score_breakdown=breakdown,
-            explanation=expl,
-            source=source,
-        ))
+        db.add(
+            Match(
+                request_id=req.id,
+                mentor_id=mentor_id,
+                rank=i,
+                score=round(score, 2),
+                score_breakdown=breakdown,
+                explanation=expl,
+                source=source,
+            )
+        )
 
 
 @router.get("/student/matches")
@@ -244,29 +302,27 @@ def student_matches(request: Request, db: Session = Depends(get_session)):
             .filter(StudentRequest.student_id == uid)
             .order_by(StudentRequest.id.desc())
             .first()
-            if uid else None
+            if uid
+            else None
         )
     else:
         req = db.get(StudentRequest, int(request_id))
 
     matches_ctx = []
     if req:
-        matches = (
-            db.query(Match)
-            .filter(Match.request_id == req.id)
-            .order_by(Match.rank)
-            .all()
-        )
+        matches = db.query(Match).filter(Match.request_id == req.id).order_by(Match.rank).all()
         for m in matches:
             mentor = db.get(User, m.mentor_id)
             profile = db.get(MentorProfile, m.mentor_id)
             overlap = sorted(set(req.availability) & set(profile.availability)) if profile else []
-            matches_ctx.append({
-                "match": m,
-                "mentor": mentor,
-                "profile": profile,
-                "overlap": overlap,
-            })
+            matches_ctx.append(
+                {
+                    "match": m,
+                    "mentor": mentor,
+                    "profile": profile,
+                    "overlap": overlap,
+                }
+            )
 
     return render(
         "student/matches.html",
@@ -339,9 +395,7 @@ def student_dashboard(request: Request, db: Session = Depends(get_session)):
     ctx_items = []
     for ms in mentorships:
         mentor = db.get(User, ms.mentor_id)
-        deliverables = (
-            db.query(Deliverable).filter(Deliverable.mentorship_id == ms.id).all()
-        )
+        deliverables = db.query(Deliverable).filter(Deliverable.mentorship_id == ms.id).all()
         ctx_items.append({"ms": ms, "mentor": mentor, "deliverables": deliverables})
     return render(
         "student/dashboard.html",
@@ -355,6 +409,7 @@ def student_dashboard(request: Request, db: Session = Depends(get_session)):
 
 # ── Mentor signup + dashboard + profile ─────────────────────────────────────
 
+
 @router.get("/mentor/signup")
 def mentor_signup_form(request: Request, db: Session = Depends(get_session)):
     return render(
@@ -363,6 +418,7 @@ def mentor_signup_form(request: Request, db: Session = Depends(get_session)):
             "request": request,
             "current": current_user(request, db),
             "taxonomy": load_taxonomy(),
+            "specialties": CS_ENGINEERING_SPECIALTIES,
         },
     )
 
@@ -383,6 +439,7 @@ def mentor_signup_submit(
     availability: str = Form(""),
     top3: str = Form(""),
     max_students: int = Form(2),
+    specialties: str = Form(""),
 ):
     user = User(
         role="mentor",
@@ -393,6 +450,13 @@ def mentor_signup_submit(
         mentor_type=mentor_type,
         headshot_url="/static/avatars/avatar_2.svg",
     )
+    chosen_specialties = _parse_multi(specialties)
+    if not chosen_specialties or any(
+        specialty not in CS_ENGINEERING_SPECIALTIES for specialty in chosen_specialties
+    ):
+        raise HTTPException(
+            status_code=422, detail="Choose at least one valid CS or engineering specialty."
+        )
     db.add(user)
     db.flush()
 
@@ -415,6 +479,7 @@ def mentor_signup_submit(
         experience_score=exp_s,
         experience_level=experience_level(exp_s),
         additional_experiences=additional_experiences,
+        specialties=chosen_specialties,
         outcomes=_parse_multi(outcomes),
         availability=_parse_multi(availability),
         top3=_parse_multi(top3),
@@ -464,9 +529,7 @@ def mentor_dashboard(request: Request, db: Session = Depends(get_session)):
             profile = db.get(MentorProfile, user.id)
             slots = []
             if req and profile:
-                slots = scheduling.suggest_slots(
-                    list(req.availability), list(profile.availability)
-                )
+                slots = scheduling.suggest_slots(list(req.availability), list(profile.availability))
             match = (
                 db.query(Match)
                 .filter(Match.request_id == ms.request_id, Match.mentor_id == user.id)
@@ -485,9 +548,7 @@ def mentor_dashboard(request: Request, db: Session = Depends(get_session)):
                 awaiting.append(item)
             elif ms.status in ("active", "completed"):
                 deliverables = (
-                    db.query(Deliverable)
-                    .filter(Deliverable.mentorship_id == ms.id)
-                    .all()
+                    db.query(Deliverable).filter(Deliverable.mentorship_id == ms.id).all()
                 )
                 item["deliverables"] = deliverables
                 active.append(item)
@@ -544,6 +605,7 @@ def mentor_profile(mentor_id: int, request: Request, db: Session = Depends(get_s
 
 # ── Availability ───────────────────────────────────────────────────────────────
 
+
 @router.get("/availability")
 def availability_page(request: Request, db: Session = Depends(get_session)):
     user = current_user(request, db)
@@ -592,6 +654,7 @@ def availability_save(
 
 # ── Mentorship workspace ──────────────────────────────────────────────────────
 
+
 def _load_workspace(db: Session, mentorship_id: int):
     ms = db.get(Mentorship, mentorship_id)
     if ms is None:
@@ -605,14 +668,9 @@ def _load_workspace(db: Session, mentorship_id: int):
         .all()
     )
     meetings = (
-        db.query(Meeting)
-        .filter(Meeting.mentorship_id == ms.id)
-        .order_by(Meeting.number)
-        .all()
+        db.query(Meeting).filter(Meeting.mentorship_id == ms.id).order_by(Meeting.number).all()
     )
-    testimonials = (
-        db.query(Testimonial).filter(Testimonial.mentorship_id == ms.id).all()
-    )
+    testimonials = db.query(Testimonial).filter(Testimonial.mentorship_id == ms.id).all()
     return {
         "ms": ms,
         "mentor": mentor,
@@ -624,9 +682,7 @@ def _load_workspace(db: Session, mentorship_id: int):
 
 
 @router.get("/mentorship/{mentorship_id}")
-def mentorship_workspace(
-    mentorship_id: int, request: Request, db: Session = Depends(get_session)
-):
+def mentorship_workspace(mentorship_id: int, request: Request, db: Session = Depends(get_session)):
     ctx = _load_workspace(db, mentorship_id)
     if ctx is None:
         return RedirectResponse(url="/", status_code=303)
@@ -645,27 +701,23 @@ def schedule_intro(
     ms = db.get(Mentorship, mentorship_id)
     fsm.schedule(ms, slot)
     # Create the intro meeting record
-    db.add(Meeting(
-        mentorship_id=ms.id,
-        number=0,
-        agreed_time_text=slot,
-        status="scheduled",
-    ))
+    db.add(
+        Meeting(
+            mentorship_id=ms.id,
+            number=0,
+            agreed_time_text=slot,
+            status="scheduled",
+        )
+    )
     db.commit()
     return RedirectResponse(url=f"/mentorship/{mentorship_id}", status_code=303)
 
 
 @router.post("/mentorships/{mentorship_id}/intro/held")
-def mark_intro_held(
-    mentorship_id: int, request: Request, db: Session = Depends(get_session)
-):
+def mark_intro_held(mentorship_id: int, request: Request, db: Session = Depends(get_session)):
     ms = db.get(Mentorship, mentorship_id)
     fsm.hold(ms)
-    intro = (
-        db.query(Meeting)
-        .filter(Meeting.mentorship_id == ms.id, Meeting.number == 0)
-        .first()
-    )
+    intro = db.query(Meeting).filter(Meeting.mentorship_id == ms.id, Meeting.number == 0).first()
     if intro:
         intro.status = "held"
     db.commit()
@@ -695,12 +747,14 @@ def propose_deliverable(
     text: str = Form(...),
     due_meeting: int | None = Form(None),
 ):
-    db.add(Deliverable(
-        mentorship_id=mentorship_id,
-        text=text,
-        status="proposed",
-        due_meeting=due_meeting,
-    ))
+    db.add(
+        Deliverable(
+            mentorship_id=mentorship_id,
+            text=text,
+            status="proposed",
+            due_meeting=due_meeting,
+        )
+    )
     db.commit()
     return RedirectResponse(url=f"/mentorship/{mentorship_id}", status_code=303)
 
@@ -775,12 +829,14 @@ def leave_testimonial(
 ):
     ms = db.get(Mentorship, mentorship_id)
     if ms:
-        db.add(Testimonial(
-            mentorship_id=ms.id,
-            student_id=ms.student_id,
-            mentor_id=ms.mentor_id,
-            text=text,
-        ))
+        db.add(
+            Testimonial(
+                mentorship_id=ms.id,
+                student_id=ms.student_id,
+                mentor_id=ms.mentor_id,
+                text=text,
+            )
+        )
         if ms.status == "active":
             fsm.complete(ms)
         db.commit()

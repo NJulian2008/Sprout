@@ -4,9 +4,10 @@ Deterministic mentor-matching service.
 All functions are pure Python with no ORM or database dependency,
 making them fast and easy to unit-test.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.config_constants import (
     AVAIL_BLOCKS_FOR_FULL_SCORE,
@@ -20,18 +21,21 @@ from app.config_constants import (
     WEIGHT_AVAIL_FIT,
     WEIGHT_OUTCOME_FIT,
     WEIGHT_SKILLS_FIT,
+    WEIGHT_SPECIALTY_FIT,
 )
 
 # ── Data transfer objects (no ORM imports) ───────────────────────────────────
 
+
 @dataclass
 class StudentProfile:
     id: int
-    goal_type: str                          # one of OUTCOMES
-    skills_to_learn: list[str]             # taxonomy ids the student wants
-    skill_scores: dict[str, float]         # current skills {id: confidence}
+    goal_type: str  # one of OUTCOMES
+    skills_to_learn: list[str]  # taxonomy ids the student wants
+    skill_scores: dict[str, float]  # current skills {id: confidence}
     experience_score: float
-    availability: list[str]                # "Day-Part" strings
+    availability: list[str]  # "Day-Part" strings
+    specialty: str = ""
 
 
 @dataclass
@@ -44,9 +48,11 @@ class MentorCandidate:
     active_students: int = 0
     max_students: int = 2
     schedule_needs_discussion: bool = False
+    specialties: list[str] = field(default_factory=list)
 
 
 # ── Core scoring functions ────────────────────────────────────────────────────
+
 
 def cover(m: float, st: float) -> float:
     """Per-skill coverage score.
@@ -68,10 +74,14 @@ def level_fit(gap: float) -> float:
     """
     if gap < LEVEL_FIT_MIN_GAP:
         # Mentor not sufficiently ahead (or behind) — linearly falls to 0
-        return max(0.0, 1.0 - (LEVEL_FIT_MIN_GAP - gap) / (LEVEL_FIT_MIN_GAP - LEVEL_FIT_LOWER_BOUND))
+        return max(
+            0.0, 1.0 - (LEVEL_FIT_MIN_GAP - gap) / (LEVEL_FIT_MIN_GAP - LEVEL_FIT_LOWER_BOUND)
+        )
     if gap > LEVEL_FIT_MAX_GAP:
         # Mentor so far ahead the project may be out of reach
-        return max(0.0, 1.0 - (gap - LEVEL_FIT_MAX_GAP) / (LEVEL_FIT_UPPER_BOUND - LEVEL_FIT_MAX_GAP))
+        return max(
+            0.0, 1.0 - (gap - LEVEL_FIT_MAX_GAP) / (LEVEL_FIT_UPPER_BOUND - LEVEL_FIT_MAX_GAP)
+        )
     return 1.0
 
 
@@ -105,29 +115,36 @@ def availability_fit(student_avail: list[str], mentor_avail: list[str]) -> float
     return min(1.0, overlaps / AVAIL_BLOCKS_FOR_FULL_SCORE)
 
 
-def compute_score(
-    student: StudentProfile, mentor: MentorCandidate
-) -> tuple[float, dict]:
+def specialty_fit(student_specialty: str, mentor_specialties: list[str]) -> float:
+    """Return full credit when mentor expertise includes the requested field."""
+    return 1.0 if student_specialty and student_specialty in mentor_specialties else 0.0
+
+
+def compute_score(student: StudentProfile, mentor: MentorCandidate) -> tuple[float, dict]:
     """Weighted overall score (0–100) with full breakdown."""
     sf, sf_detail = skills_fit(student, mentor)
     of = outcome_fit(student.goal_type, mentor.outcomes)
     af = availability_fit(student.availability, mentor.availability)
+    spf = specialty_fit(student.specialty, mentor.specialties)
 
     score = 100.0 * (
         WEIGHT_SKILLS_FIT * sf
         + WEIGHT_OUTCOME_FIT * of
         + WEIGHT_AVAIL_FIT * af
+        + WEIGHT_SPECIALTY_FIT * spf
     )
     breakdown = {
         "skills_fit": round(sf, 4),
         "skills_fit_detail": sf_detail,
         "outcome_fit": round(of, 4),
         "availability_fit": round(af, 4),
+        "specialty_fit": round(spf, 4),
     }
     return round(score, 4), breakdown
 
 
 # ── Hard filters ─────────────────────────────────────────────────────────────
+
 
 def apply_hard_filters(
     student: StudentProfile,
@@ -144,10 +161,7 @@ def apply_hard_filters(
     has_capacity = [m for m in mentors if m.active_students < m.max_students]
 
     # Filter by availability overlap
-    has_overlap = [
-        m for m in has_capacity
-        if set(student.availability) & set(m.availability)
-    ]
+    has_overlap = [m for m in has_capacity if set(student.availability) & set(m.availability)]
 
     if len(has_overlap) >= 3:
         return has_overlap
@@ -161,6 +175,7 @@ def apply_hard_filters(
 
 # ── Ranking ───────────────────────────────────────────────────────────────────
 
+
 def rank(
     student: StudentProfile,
     mentors: list[MentorCandidate],
@@ -169,10 +184,7 @@ def rank(
 
     Returns a list of ``(mentor, score, breakdown)`` tuples.
     """
-    scored = [
-        (mentor, *compute_score(student, mentor))
-        for mentor in mentors
-    ]
+    scored = [(mentor, *compute_score(student, mentor)) for mentor in mentors]
     # Primary sort: score descending; secondary: mentor id ascending (tie-break)
     scored.sort(key=lambda x: (-x[1], x[0].id))
     return [(m, s, b) for m, s, b in scored]
