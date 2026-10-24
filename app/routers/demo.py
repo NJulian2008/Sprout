@@ -34,9 +34,18 @@ def demo_panel(request: Request, db: Session = Depends(get_session)):
 
 
 @router.post("/demo/role")
-def set_role(request: Request, user_id: int = Form(...)):
-    """Set the session's active user (role switcher)."""
+def set_role(
+    request: Request,
+    user_id: int = Form(...),
+    db: Session = Depends(get_session),
+):
+    """Set the session's active user and land on that user's dashboard."""
     request.session["user_id"] = user_id
+    user = db.get(User, user_id)
+    if user and user.role == "student":
+        return RedirectResponse(url="/student/dashboard", status_code=303)
+    if user and user.role == "mentor":
+        return RedirectResponse(url="/mentor/dashboard", status_code=303)
     return RedirectResponse(url="/", status_code=303)
 
 
