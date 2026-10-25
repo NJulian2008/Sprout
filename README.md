@@ -47,6 +47,16 @@ Copy `.env.example` to `.env` and adjust as needed:
 
 ---
 
+## Skill extraction behavior
+
+When the LLM is off or unavailable, skill extraction uses conservative phrase
+matching: short ambiguous aliases and negated mentions are ignored, and a
+mention alone receives only a low beginner-level score. Live model results are
+kept only when they include a verbatim text quote that explicitly names the
+skill. Review all suggestions before submitting; users can remove or add skills.
+
+---
+
 ## Running the app
 
 ```bash

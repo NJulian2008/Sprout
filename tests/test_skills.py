@@ -82,6 +82,38 @@ def test_fallback_extract_empty_text():
     assert fallback_extract("") == {}
 
 
+def test_fallback_extract_ignores_incidental_substrings():
+    text = "I collaborated with colleagues and wrote a report during my internship."
+    assert fallback_extract(text) == {}
+
+
+def test_fallback_extract_ignores_short_ambiguous_aliases():
+    assert fallback_extract("We are going to build a goal tracker.") == {}
+
+
+def test_fallback_extract_keeps_explicit_long_skill_phrases():
+    result = fallback_extract("I completed coursework in the C language and built with Python.")
+    assert result == {"python": 0.3, "c": 0.3}
+
+
+def test_fallback_extract_suppresses_negated_skills():
+    assert fallback_extract("No experience with Python, Docker, or Git.") == {}
+
+
+def test_fallback_extract_keeps_positive_skills_after_contrast():
+    result = fallback_extract("No experience with Python, but I use Docker.")
+    assert result == {"docker": 0.3}
+
+
+def test_goal_fallback_keeps_explicit_learning_targets():
+    result = fallback_extract("Build an ML project with Python.", goal_context=True)
+    assert result == {"machine_learning": 0.5, "python": 0.5}
+
+
+def test_goal_fallback_ignores_rejected_skills():
+    assert fallback_extract("I don't want to learn Python.", goal_context=True) == {}
+
+
 # ───────────────────────────────────────────────────────────────────────────
 # _validated_scores() — posted mentor/student score validation
 # (spec: skill-extraction-data-corruption-fix, Task 3.2)

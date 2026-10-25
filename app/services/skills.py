@@ -6,6 +6,7 @@ All functions are pure (no database dependency) and unit-testable.
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -101,27 +102,89 @@ def experience_level(score: float) -> str:
     return "advanced"
 
 
-def fallback_extract(text: str) -> dict[str, float]:
-    """Keyword-scan fallback when the LLM is unavailable.
+_NEGATION_RE = re.compile(
+    r"\b(?:no|not|never|without|lack|lacks|lacked|lacking|"
+    r"don't|doesn't|didn't|haven't|hasn't|hadn't)\b",
+    re.IGNORECASE,
+)
+_CONTRAST_SPLIT_RE = re.compile(
+    r"[.!?;]+|\b(?:but|however|although|yet)\b",
+    re.IGNORECASE,
+)
+_GOAL_INTENT_RE = re.compile(
+    r"\b(?:want(?:s|ed)? to|would like to|hope to|aim to|plan to|"
+    r"learn(?:ing)?|study|build|improve|practice|develop|explore|"
+    r"focus on|interested in)\b",
+    re.IGNORECASE,
+)
+_GOAL_REJECTION_RE = re.compile(
+    r"\b(?:don't want to|do not want to|doesn't want to|does not want to|"
+    r"never want to|not interested in|no desire to|avoid|rather not)\b",
+    re.IGNORECASE,
+)
 
-    Counts all mentions of each skill's id, label, and aliases in *text*
-    (case-insensitive) and maps to a confidence:
-    ``confidence = min(0.7, 0.3 + 0.1 * total_mentions)``
 
-    Only canonical taxonomy ids are returned; no unknown keys.
+def _skill_terms(skill_id: str, entry: dict) -> set[str]:
+    terms = {skill_id, skill_id.replace("_", " "), entry["label"], *entry["aliases"]}
+    return {term.strip().lower() for term in terms if term.strip()}
+
+
+def _term_pattern(term: str) -> re.Pattern[str]:
+    escaped = re.escape(term)
+    escaped = re.sub(r"(?:\\ |\\_)+", r"\\s+", escaped)
+    return re.compile(rf"(?<!\w){escaped}(?!\w)", re.IGNORECASE)
+
+
+def _has_positive_skill_mention(skill_id: str, text: str, entry: dict) -> bool:
+    """Check for an explicit, non-negated taxonomy phrase in the text."""
+    segments = _CONTRAST_SPLIT_RE.split(text)
+    terms = _skill_terms(skill_id, entry)
+
+    for segment in segments:
+        if _NEGATION_RE.search(segment):
+            continue
+        for term in terms:
+            # Short aliases such as "c", "go", and "sh" are too ambiguous
+            # for automatic extraction; the canonical full label remains usable.
+            if len(re.sub(r"\W", "", term)) < 3:
+                continue
+            if _term_pattern(term).search(segment):
+                return True
+
+    return False
+
+
+def _has_goal_skill_mention(skill_id: str, text: str, entry: dict) -> bool:
+    """Find a named skill paired with positive learning/building intent."""
+    terms = _skill_terms(skill_id, entry)
+    for segment in _CONTRAST_SPLIT_RE.split(text):
+        if not _GOAL_INTENT_RE.search(segment) or _GOAL_REJECTION_RE.search(segment):
+            continue
+        for term in terms:
+            if _term_pattern(term).search(segment):
+                return True
+    return False
+
+
+def fallback_extract(text: str, *, goal_context: bool = False) -> dict[str, float]:
+    """Conservatively extract explicit positive skill mentions.
+
+    Matching uses whole phrases, ignores ambiguous short aliases, and skips
+    negated clauses. In goal context, only explicit positive learning/building
+    intent is included. A mention alone cannot establish proficiency, so resume
+    fallback scores remain at beginner-level confidence.
     """
-    text_lower = text.lower()
     taxonomy = load_taxonomy()
     result: dict[str, float] = {}
 
     for skill_id, entry in taxonomy.items():
-        terms = (
-            [skill_id]
-            + [entry["label"].lower()]
-            + [a.lower() for a in entry["aliases"]]
-        )
-        total = sum(text_lower.count(term) for term in terms)
-        if total > 0:
-            result[skill_id] = round(min(0.7, 0.3 + 0.1 * total), 2)
+        if goal_context:
+            found = _has_goal_skill_mention(skill_id, text, entry)
+            confidence = 0.5
+        else:
+            found = _has_positive_skill_mention(skill_id, text, entry)
+            confidence = 0.3
+        if found:
+            result[skill_id] = confidence
 
     return result

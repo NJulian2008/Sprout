@@ -45,7 +45,7 @@
 
   <div class="card">
     <h3>Your skills</h3>
-    <p class="muted sample-note">Paste your resume or LinkedIn text. AI estimates a confidence for each skill — edit freely.</p>
+    <p class="muted sample-note">Paste your resume or LinkedIn text for skill suggestions. Review the results and add or remove skills as needed.</p>
     <div class="field">
       <textarea name="resume_text" id="mentor-resume" placeholder="Paste resume / LinkedIn text..."></textarea>
     </div>
@@ -54,7 +54,7 @@
             hx-include="#mentor-resume"
             hx-target="#skill-chips-result"
             hx-swap="outerHTML">Find my skills</button>
-    {% set skill_scores = {} %}{% set experience_level = "intermediate" %}{% set experience_score = 0 %}{% set field_name = "skill_scores_json" %}
+    {% set skill_scores = {} %}{% set experience_level = "intermediate" %}{% set experience_score = 0 %}{% set field_name = "skill_scores_json" %}{% set scores_reviewed = false %}
     {% include "partials/skill_chips.html" %}
     <div class="field" style="margin-top:1rem;">
       <label>Additional experiences</label>

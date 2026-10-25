@@ -36,7 +36,7 @@
         <div class="chips">
           {% for sid, conf in p.skill_scores.items() %}
             {% if sid in req.skills_to_learn %}
-              <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid }} <span class="conf">{{ (conf*100)|round|int }}%</span></span>
+              <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid }}</span>
             {% endif %}
           {% endfor %}
         </div>

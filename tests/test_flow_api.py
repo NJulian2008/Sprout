@@ -310,7 +310,7 @@ def test_bug_student_goal_over_extraction(client, monkeypatch):
     monkeypatch.setattr(
         pages_module,
         "extract_skills",
-        lambda text, db: {"python": 0.2, "git": 0.2},
+        lambda text, db, **kwargs: {"python": 0.2, "git": 0.2},
     )
 
     c, SessionMaker = client
@@ -643,7 +643,7 @@ def _submit_student_goal(client, monkeypatch, goal_confidences, *, goal_text):
     monkeypatch.setattr(
         pages_module,
         "extract_skills",
-        lambda text, db: dict(goal_confidences),
+        lambda text, db, **kwargs: dict(goal_confidences),
     )
 
     c, SessionMaker = client
@@ -800,7 +800,7 @@ def test_goal_threshold_integration_drops_low_keeps_high_resume_unchanged(client
     monkeypatch.setattr(
         pages_module,
         "extract_skills",
-        lambda text, db: dict(goal_map),
+        lambda text, db, **kwargs: dict(goal_map),
     )
 
     resume = "I have used sql and docker across multiple internships."

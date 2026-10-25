@@ -175,6 +175,7 @@ def student_signup_submit(
     availability: str = Form(""),
     top3: str = Form(""),
     skill_scores_json: str = Form("{}"),
+    skill_scores_reviewed: bool = Form(False),
     resume_file: UploadFile = File(...),
 ):
     resume_text = _resume_text_from_upload(resume_file)
@@ -194,13 +195,15 @@ def student_signup_submit(
         posted = json.loads(skill_scores_json) if skill_scores_json else {}
     except json.JSONDecodeError:
         posted = {}
-    if posted:
+    if not isinstance(posted, dict):
+        posted = {}
+    if skill_scores_reviewed or posted:
         scores = _validated_scores(posted)
     elif resume_text.strip():
         scores = extract_skills(resume_text, db)
     else:
         scores = {}
-    goal_skills = extract_skills(goal_text, db)
+    goal_skills = extract_skills(goal_text, db, goal_context=True)
     goal_type = _infer_goal_type(goal_text)
 
     exp_s = experience_score(scores)
@@ -419,6 +422,7 @@ def student_skills_extract(
             "experience_score": round(exp_s, 2),
             "taxonomy": load_taxonomy(),
             "field_name": "skill_scores_json",
+            "scores_reviewed": True,
         },
     )
 
@@ -482,6 +486,7 @@ def mentor_signup_submit(
     top3: str = Form(""),
     max_students: int = Form(2),
     specialties: str = Form(""),
+    skill_scores_reviewed: bool = Form(False),
     resume_file: UploadFile = File(...),
 ):
     resume_text = _resume_text_from_upload(resume_file)
@@ -510,7 +515,9 @@ def mentor_signup_submit(
         posted = json.loads(skill_scores_json) if skill_scores_json else {}
     except json.JSONDecodeError:
         posted = {}
-    if posted:
+    if not isinstance(posted, dict):
+        posted = {}
+    if skill_scores_reviewed or posted:
         scores = _validated_scores(posted)
     elif resume_text.strip():
         scores = extract_skills(resume_text, db)
@@ -554,6 +561,7 @@ def mentor_skills_extract(
             "experience_score": round(exp_s, 2),
             "taxonomy": load_taxonomy(),
             "field_name": "skill_scores_json",
+            "scores_reviewed": True,
         },
     )
 

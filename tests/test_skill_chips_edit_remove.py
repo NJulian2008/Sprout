@@ -176,18 +176,17 @@ def test_student_signup_persists_added_skill_from_json(client):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# Test case 3 — remove control on populated chips; confidence is read-only
+# Test case 3 — remove control on populated chips; scores stay internal
 #
 # Scope change: editing a confidence value was removed from the feature. Each
-# chip keeps only a remove control, and the AI-estimated confidence is shown
-# read-only (no editable input).
+# chip keeps only a remove control; confidence remains in the hidden score map
+# but is not shown to users.
 # Requirements 1.2, 2.2
 # ════════════════════════════════════════════════════════════════════════════
 
 
 def test_populated_chips_have_remove_control_and_readonly_confidence(client):
-    """Each chip has a remove control carrying data-skill, and the confidence is
-    displayed read-only (no editable input).
+    """Each chip has a remove control while its score remains internal.
 
     Render non-empty chips via POST /mentor/skills/extract with a known-skill
     text. The fragment MUST contain a remove control (class="chip-remove")
@@ -207,18 +206,17 @@ def test_populated_chips_have_remove_control_and_readonly_confidence(client):
     assert 'class="chip-remove"' in html, (
         "Expected a remove control (class=\"chip-remove\") on the chips fragment."
     )
-    # Confidence is read-only now: no editable number/range input should exist.
+    # Numeric scores are not shown in the user-facing chips.
     assert 'class="chip-conf"' not in html, (
         "Editable confidence control should be removed; confidence is read-only."
     )
     assert 'type="number"' not in html and 'type="range"' not in html, (
         "No editable confidence input (number/range) should exist; the "
-        "confidence is shown as read-only text."
+        "confidence remains internal."
     )
-    # The read-only confidence percentage is still displayed.
-    assert 'class="conf"' in html, (
-        "Expected the read-only confidence (class=\"conf\") to still be shown."
-    )
+    assert 'class="conf"' not in html
+    assert "30%" not in html
+    assert '"python": 0.3' in html, "The confidence score must remain in the hidden form data."
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -903,6 +901,55 @@ def test_integration_student_add_from_empty_extraction_persists_added_skill(clie
             "Manually added skill should be persisted even when extraction found "
             f"nothing. Expected {expected}, got {req.skill_scores}."
         )
+    finally:
+        db.close()
+
+
+def test_student_signup_preserves_intentionally_empty_skill_list(client):
+    c, SessionMaker = client
+    r = c.post(
+        "/student/signup",
+        data={
+            "name": "Remove All Student",
+            "goal_text": "Explore mentoring",
+            "specialty": "artificial_intelligence",
+            "skill_scores_json": "{}",
+            "skill_scores_reviewed": "1",
+        },
+        files={"resume_file": ("resume.txt", _make_txt("Python and Docker"), "text/plain")},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db = SessionMaker()
+    try:
+        req = db.query(StudentRequest).order_by(StudentRequest.id.desc()).first()
+        assert req is not None
+        assert req.skill_scores == {}
+    finally:
+        db.close()
+
+
+def test_mentor_signup_preserves_intentionally_empty_skill_list(client):
+    c, SessionMaker = client
+    r = c.post(
+        "/mentor/signup",
+        data={
+            "name": "Remove All Mentor",
+            "specialties": "computer_science",
+            "skill_scores_json": "{}",
+            "skill_scores_reviewed": "1",
+        },
+        files={"resume_file": ("resume.txt", _make_txt("Python and Docker"), "text/plain")},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    db = SessionMaker()
+    try:
+        profile = db.query(MentorProfile).order_by(MentorProfile.user_id.desc()).first()
+        assert profile is not None
+        assert profile.skill_scores == {}
     finally:
         db.close()
 

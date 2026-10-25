@@ -34,8 +34,12 @@ def _patch_client(monkeypatch, client):
 
 
 def test_valid_json_parsed(monkeypatch, db):
-    _patch_client(monkeypatch, FakeClient('{"skills": {"python": 0.8, "docker": 0.6}}'))
-    result = extract_skills("resume text", db)
+    raw = (
+        '{"skills": {"python": 0.8, "docker": 0.6}, '
+        '"evidence": {"python": "Python", "docker": "Docker"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
+    result = extract_skills("Python and Docker resume text", db)
     assert result == {"python": 0.8, "docker": 0.6}
 
 
@@ -61,17 +65,63 @@ def test_unavailable_falls_back(monkeypatch, db):
 
 
 def test_unknown_skill_ids_dropped(monkeypatch, db):
-    _patch_client(monkeypatch, FakeClient('{"skills": {"python": 0.8, "quantumwizardry": 0.9}}'))
-    result = extract_skills("resume", db)
+    raw = (
+        '{"skills": {"python": 0.8, "quantumwizardry": 0.9}, '
+        '"evidence": {"python": "Python"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
+    result = extract_skills("Python resume", db)
     assert "python" in result
     assert "quantumwizardry" not in result
 
 
 def test_confidence_clamped(monkeypatch, db):
-    _patch_client(monkeypatch, FakeClient('{"skills": {"python": 1.5, "docker": -0.2}}'))
-    result = extract_skills("resume", db)
+    raw = (
+        '{"skills": {"python": 1.5, "docker": -0.2}, '
+        '"evidence": {"python": "Python", "docker": "Docker"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
+    result = extract_skills("Python and Docker resume", db)
     assert result["python"] == 1.0
     assert result["docker"] == 0.0
+
+
+def test_model_skills_without_verbatim_evidence_are_dropped(monkeypatch, db):
+    raw = (
+        '{"skills": {"python": 0.95}, '
+        '"evidence": {"python": "Built a machine learning model"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
+
+    assert extract_skills("I have no programming experience.", db) == {}
+
+
+def test_model_skills_with_negated_evidence_are_dropped(monkeypatch, db):
+    raw = (
+        '{"skills": {"python": 0.95}, '
+        '"evidence": {"python": "No experience with Python"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
+
+    assert extract_skills("No experience with Python.", db) == {}
+
+
+def test_model_skills_require_evidence_field(monkeypatch, db):
+    _patch_client(monkeypatch, FakeClient('{"skills": {"python": 0.95}}'))
+
+    result = extract_skills("Python developer", db)
+    assert result == {"python": 0.3}
+
+
+def test_model_goal_extraction_accepts_explicit_learning_target(monkeypatch, db):
+    raw = (
+        '{"skills": {"machine_learning": 0.8}, '
+        '"evidence": {"machine_learning": "Build an ML project"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
+
+    result = extract_skills("Build an ML project", db, goal_context=True)
+    assert result == {"machine_learning": 0.8}
 
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -143,15 +193,15 @@ def test_bug_fenced_json_forced_into_fallback(monkeypatch, db):
     is swallowed, and the weaker keyword fallback runs. Post-fix the fences are
     stripped and the JSON is parsed.
 
-    We give the LLM a high (0.8) confidence that the keyword fallback cannot
-    produce for a single mention (fallback floors at 0.3 and caps at 0.7), so
-    the two paths are distinguishable.
+    We give the LLM a high (0.8) confidence that the conservative fallback
+    cannot produce from a single mention (it assigns a fixed 0.3), so the
+    two paths are distinguishable.
 
     EXPECTED (post-fix): fenced JSON parsed → {"python": 0.8}.
     EXPECTED (unfixed, failing): strict json.loads raises on the fence and the
     keyword fallback runs, returning a fallback-scored value (!= 0.8).
     """
-    fenced = '```json\n{"skills": {"python": 0.8}}\n```'
+    fenced = '```json\n{"skills": {"python": 0.8}, "evidence": {"python": "python"}}\n```'
     _patch_client(monkeypatch, FakeClient(fenced))
 
     # The keyword fallback scores "python" from literal mentions, not 0.8.
@@ -203,7 +253,7 @@ def test_preserve_bare_json_parses_and_validates(monkeypatch, db):
     cleaned dict. This is the behavior that must be preserved after adding
     tolerant (fence-stripping) parsing.
     """
-    bare = '{"skills": {"python": 0.8}}'
+    bare = '{"skills": {"python": 0.8}, "evidence": {"python": "python"}}'
     _patch_client(monkeypatch, FakeClient(bare))
 
     result = extract_skills("python developer", db)
@@ -239,7 +289,10 @@ def test_preserve_cache_hit_for_unchanged_prompt(monkeypatch, db):
     key = _cache_key(system, prompt)
 
     # Seed the cache with a valid SkillScores JSON payload under that key.
-    cached_payload = '{"skills": {"python": 0.6, "docker": 0.5}}'
+    cached_payload = (
+        '{"skills": {"python": 0.6, "docker": 0.5}, '
+        '"evidence": {"python": "python", "docker": "docker"}}'
+    )
     db.add(LLMCache(key=key, response=cached_payload))
     db.commit()
 
@@ -469,7 +522,10 @@ def test_write_cache_reached_after_valid_content(monkeypatch, db):
 
     text = "python and docker resume"
     taxonomy_ids = ", ".join(sorted(load_taxonomy().keys()))
-    raw = '{"skills": {"python": 0.8, "docker": 0.6}}'
+    raw = (
+        '{"skills": {"python": 0.8, "docker": 0.6}, '
+        '"evidence": {"python": "python", "docker": "docker"}}'
+    )
     key = _cache_key(
         SKILL_EXTRACTION_SYSTEM,
         SKILL_EXTRACTION_USER_TEMPLATE.format(taxonomy_ids=taxonomy_ids, text=text),
@@ -586,7 +642,11 @@ def test_successful_extraction_emits_no_warning(monkeypatch, db, caplog):
     The happy path logs latency at info level; it must not surface a warning,
     so a warning unambiguously signals the weaker keyword path.
     """
-    _patch_client(monkeypatch, FakeClient('{"skills": {"python": 0.8, "docker": 0.6}}'))
+    raw = (
+        '{"skills": {"python": 0.8, "docker": 0.6}, '
+        '"evidence": {"python": "python", "docker": "docker"}}'
+    )
+    _patch_client(monkeypatch, FakeClient(raw))
 
     with caplog.at_level(logging.WARNING, logger="app.services.llm"):
         result = extract_skills("python and docker resume", db)
@@ -650,14 +710,8 @@ def test_fenced_llm_response_parsed_validated_and_cached(monkeypatch, db):
     as the cleaned dict, AND written to the cache as the raw fenced string. A
     second identical call still returns the correct skills.
 
-    Note on the cache-READ branch (reported to the orchestrator): extract_skills
-    reads the cache via SkillScores.model_validate_json(cached), NOT via
-    _loads_tolerant. So a fenced raw string stored in the cache is NOT parseable
-    by the cache-read branch — model_validate_json raises on the fence, the
-    except swallows it, and execution continues to the LLM-response path (which
-    DOES strip fences). This test asserts the ACTUAL behavior: the second call
-    still returns the correct skills, served by re-running the fence-tolerant LLM
-    path rather than by the cache branch.
+    Fenced cached responses use the same tolerant parser as fresh LLM responses,
+    so the second call should return the cached result without another request.
 
     **Validates: Requirements 2.7, 2.8, 3.4**
     """
@@ -679,7 +733,10 @@ def test_fenced_llm_response_parsed_validated_and_cached(monkeypatch, db):
         SKILL_EXTRACTION_USER_TEMPLATE.format(taxonomy_ids=taxonomy_ids, text=text),
     )
 
-    fenced_raw = '```json\n{"skills": {"python": 0.8, "docker": 0.6}}\n```'
+    fenced_raw = (
+        '```json\n{"skills": {"python": 0.8, "docker": 0.6}, '
+        '"evidence": {"python": "python", "docker": "docker"}}\n```'
+    )
     client = RecordingClient(fenced_raw)
     _patch_client(monkeypatch, client)
 
@@ -698,7 +755,4 @@ def test_fenced_llm_response_parsed_validated_and_cached(monkeypatch, db):
     # fence), it falls through and the fence-tolerant LLM path serves it again.
     second = _extract(text, db)
     assert second == {"python": 0.8, "docker": 0.6}
-    assert client.calls == 2, (
-        "a fenced cached entry is not parseable by the cache-read branch "
-        "(model_validate_json on the fence), so the LLM path runs again"
-    )
+    assert client.calls == 1, "a valid fenced response should be served from cache"

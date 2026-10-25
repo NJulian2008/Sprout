@@ -8,7 +8,7 @@ Architecture:
 - CachedAdapter    — reads from LLMCache table; raises on miss
 
 Every call is logged (latency, cache hit, fallback used).
-Results are cached in the LLMCache table keyed by sha256(system+prompt).
+Results are cached in the LLMCache table with a versioned, taxonomy-aware key.
 """
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from app.services.prompts import (
     RERANK_USER_TEMPLATE,
     SKILL_EXTRACTION_SYSTEM,
     SKILL_EXTRACTION_USER_TEMPLATE,
+    SKILL_GOAL_CONTEXT_INSTRUCTION,
 )
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ def get_llm_client(db: Session) -> LLMClient:
 
 # ── Cache helpers ─────────────────────────────────────────────────────────────
 
-CACHE_VERSION = "v2"
+CACHE_VERSION = "v3"
 
 
 def _taxonomy_signature() -> str:
@@ -157,16 +158,62 @@ def _loads_tolerant(raw: str):
     return json.loads(candidate)
 
 
+def _grounded_skill_scores(
+    payload: dict, text: str, *, goal_context: bool = False
+) -> dict[str, float]:
+    """Keep model scores only when backed by an exact, explicit text quote."""
+    from app.schemas.ai import SkillScores
+    from app.services.skills import (
+        _has_goal_skill_mention,
+        _has_positive_skill_mention,
+        load_taxonomy,
+    )
+
+    validated = SkillScores.model_validate(payload)
+    evidence = payload.get("evidence")
+    if not isinstance(evidence, dict):
+        raise ValueError("skill extraction response must include an evidence object")
+
+    taxonomy = load_taxonomy()
+    text_folded = text.casefold()
+    mention_check = _has_goal_skill_mention if goal_context else _has_positive_skill_mention
+    grounded: dict[str, float] = {}
+    discarded_count = 0
+    raw_skills = payload.get("skills")
+    if isinstance(raw_skills, dict):
+        discarded_count += len(set(raw_skills) - set(validated.skills))
+
+    for skill_id, confidence in validated.skills.items():
+        quote = evidence.get(skill_id)
+        if not isinstance(quote, str) or not quote.strip() or quote.casefold() not in text_folded:
+            discarded_count += 1
+            continue
+        if mention_check(skill_id, quote, taxonomy[skill_id]) and mention_check(
+            skill_id, text, taxonomy[skill_id]
+        ):
+            grounded[skill_id] = confidence
+        else:
+            discarded_count += 1
+    if discarded_count:
+        logger.warning(
+            "extract_skills: discarded %d model skill(s) without valid positive evidence",
+            discarded_count,
+        )
+    return grounded
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def extract_skills(text: str, db: Session) -> dict[str, float]:
-    """Extract skill confidences from resume/project text.
+def extract_skills(
+    text: str, db: Session, *, goal_context: bool = False
+) -> dict[str, float]:
+    """Extract skill confidences or explicit learning targets from text.
 
     Uses the LLM with the skill-extraction prompt, validates with SkillScores,
-    and falls back to keyword scan on any failure.
+    and falls back to conservative phrase matching on any failure. Set
+    ``goal_context`` for student learning-goal extraction.
     Returns {skill_id: confidence}.
     """
-    from app.schemas.ai import SkillScores
     from app.services.skills import fallback_extract, load_taxonomy
 
     taxonomy_ids = ", ".join(sorted(load_taxonomy().keys()))
@@ -174,6 +221,8 @@ def extract_skills(text: str, db: Session) -> dict[str, float]:
     prompt = SKILL_EXTRACTION_USER_TEMPLATE.format(
         taxonomy_ids=taxonomy_ids, text=text
     )
+    if goal_context:
+        prompt = f"{SKILL_GOAL_CONTEXT_INSTRUCTION}\n{prompt}"
     key = _cache_key(system, prompt)
 
     # Check cache first
@@ -181,7 +230,9 @@ def extract_skills(text: str, db: Session) -> dict[str, float]:
     if cached:
         logger.info("extract_skills: cache hit")
         try:
-            return SkillScores.model_validate_json(cached).skills
+            return _grounded_skill_scores(
+                _loads_tolerant(cached), text, goal_context=goal_context
+            )
         except Exception:
             pass
 
@@ -192,9 +243,11 @@ def extract_skills(text: str, db: Session) -> dict[str, float]:
             raw = client.complete_json(system, prompt, timeout_s=6.0)
             latency = time.monotonic() - t0
             logger.info("extract_skills: LLM latency=%.2fs attempt=%d", latency, attempt + 1)
-            validated = SkillScores.model_validate(_loads_tolerant(raw))
+            validated = _grounded_skill_scores(
+                _loads_tolerant(raw), text, goal_context=goal_context
+            )
             _write_cache(db, key, raw)
-            return validated.skills
+            return validated
         except LLMUnavailable:
             break
         except Exception as exc:
@@ -203,7 +256,7 @@ def extract_skills(text: str, db: Session) -> dict[str, float]:
                 break
 
     logger.warning("extract_skills: LLM extraction unavailable — using keyword fallback")
-    return fallback_extract(text)
+    return fallback_extract(text, goal_context=goal_context)
 
 
 def rerank_and_explain(

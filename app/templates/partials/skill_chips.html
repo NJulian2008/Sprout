@@ -2,12 +2,14 @@
    Context: skill_scores (dict), experience_level, experience_score, taxonomy, field_name
 
    The chips are interactive: each chip has a remove button, and a free-text add
-   box (with taxonomy autocomplete) lets the user include a skill the AI missed.
+   box (with taxonomy autocomplete) lets the user include a missed skill.
    Typed text is resolved to a canonical taxonomy id — first locally (exact
    id/label/alias match), then via GET /api/skills/normalize for fuzzy matches
    (rapidfuzz ≥ 85). Unknown text is rejected. Confidence values are AI
-   estimates and are displayed read-only (an added skill gets a fixed default
-   confidence). A self-initializing inline script
+   scores are extraction estimates and are displayed read-only (an added skill
+   gets a fixed default confidence). The reviewed flag distinguishes an
+   intentional empty list from a form that has not run extraction. A
+   self-initializing inline script
    keeps the hidden `field_name` JSON in sync with the user's removals/additions
    and recomputes the experience badge/score on the client (display only — the
    server recomputes authoritatively at submit). The partial is HTMX-swapped
@@ -15,13 +17,12 @@
    for the just-rendered fragment after every swap. #}
 <div id="skill-chips-result">
   {% if skill_scores %}
-    <p class="muted sample-note">AI estimate — remove a skill, or add one below.</p>
+    <p class="muted sample-note">Skill suggestions — review them, remove any that do not fit, or add one below.</p>
     <div class="chips" data-chips>
       {% for sid, conf in skill_scores.items() %}
         {% set label = taxonomy[sid].label if sid in taxonomy else sid %}
         <span class="chip" data-chip="{{ sid }}">
           <span class="chip-label">{{ label }}</span>
-          <span class="conf">{{ (conf * 100)|round|int }}%</span>
           <button type="button" class="chip-remove" data-skill="{{ sid }}"
                   aria-label="Remove {{ label }}">×</button>
         </span>
@@ -36,11 +37,10 @@
     </div>
     <p>Experience level:
       <span class="badge badge-{{ experience_level }}" data-level-badge>{{ experience_level|capitalize }}</span>
-      <span class="muted" data-score-text>(score {{ experience_score }})</span>
     </p>
     <input type="hidden" name="{{ field_name }}" value='{{ skill_scores|tojson }}'>
   {% else %}
-    <p class="muted">No skills detected yet. Paste resume or project text and click “Find my skills”. Or add a skill below.</p>
+    <p class="muted">No skills detected yet. Add any skills you want to include below.</p>
     <div class="chips" data-chips></div>
     <div class="chip-add-row">
       <input type="text" class="chip-add-input" list="chip-add-options"
@@ -51,10 +51,10 @@
     </div>
     <p class="chip-exp" hidden>Experience level:
       <span class="badge badge-{{ experience_level }}" data-level-badge>{{ experience_level|capitalize }}</span>
-      <span class="muted" data-score-text>(score {{ experience_score }})</span>
     </p>
     <input type="hidden" name="{{ field_name }}" value="{}">
   {% endif %}
+  <input type="hidden" name="skill_scores_reviewed" value="{{ 1 if scores_reviewed else 0 }}">
 
   {# Autocomplete options + a resolver map (label/alias/id → {id,label}) so a
      free-text entry still resolves to a canonical taxonomy id, mirroring
@@ -90,6 +90,7 @@
 
   var hidden = root.querySelector('input[type="hidden"]');
   if (!hidden) return;
+  var reviewed = root.querySelector('input[name="skill_scores_reviewed"]');
 
   // Build the in-memory {skill_id: confidence(0-1)} map from the hidden JSON.
   var map = {};
@@ -107,6 +108,7 @@
 
   function syncHidden() {
     hidden.value = JSON.stringify(map);
+    if (reviewed) reviewed.value = "1";
   }
 
   // Client mirror of app/services/skills.py experience_score/experience_level.
@@ -133,8 +135,6 @@
       badge.className = "badge badge-" + level;
       badge.textContent = level.charAt(0).toUpperCase() + level.slice(1);
     }
-    var scoreText = root.querySelector("[data-score-text]");
-    if (scoreText) scoreText.textContent = "(score " + score + ")";
     // Reveal the experience line once skills exist (empty-state transition).
     var expLine = root.querySelector(".chip-exp");
     if (expLine && Object.keys(map).length > 0) expLine.hidden = false;
@@ -142,7 +142,7 @@
 
   var chipsContainer = root.querySelector("[data-chips]");
 
-  function buildChip(sid, label, conf) {
+  function buildChip(sid, label) {
     var chip = document.createElement("span");
     chip.className = "chip";
     chip.setAttribute("data-chip", sid);
@@ -150,10 +150,6 @@
     var labelEl = document.createElement("span");
     labelEl.className = "chip-label";
     labelEl.textContent = label;
-
-    var confEl = document.createElement("span");
-    confEl.className = "conf";
-    confEl.textContent = String(Math.round(conf * 100)) + "%";
 
     var remove = document.createElement("button");
     remove.type = "button";
@@ -163,7 +159,6 @@
     remove.textContent = "×";
 
     chip.appendChild(labelEl);
-    chip.appendChild(confEl);
     chip.appendChild(remove);
     wireChip(chip);
     return chip;
@@ -232,12 +227,12 @@
       if (!(sid in map)) map[sid] = 0.5;
       if (!existing) {
         // Map had the key but the chip was missing — rebuild it.
-        chipsContainer.appendChild(buildChip(sid, label, map[sid]));
+        chipsContainer.appendChild(buildChip(sid, label));
       }
     } else {
       // New skill at a fixed default confidence (not user-editable).
       map[sid] = 0.5;
-      chipsContainer.appendChild(buildChip(sid, label, map[sid]));
+      chipsContainer.appendChild(buildChip(sid, label));
     }
     addInput.value = "";
     syncHidden();
