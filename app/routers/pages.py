@@ -26,6 +26,7 @@ from app.db.models import (
     Meeting,
     MentorProfile,
     Mentorship,
+    Message,
     StudentRequest,
     Testimonial,
     User,
@@ -671,6 +672,13 @@ def _load_workspace(db: Session, mentorship_id: int):
         db.query(Meeting).filter(Meeting.mentorship_id == ms.id).order_by(Meeting.number).all()
     )
     testimonials = db.query(Testimonial).filter(Testimonial.mentorship_id == ms.id).all()
+    message_rows = (
+        db.query(Message)
+        .filter(Message.mentorship_id == ms.id)
+        .order_by(Message.created_at, Message.id)
+        .all()
+    )
+    messages = [{"msg": m, "sender": db.get(User, m.sender_id)} for m in message_rows]
     return {
         "ms": ms,
         "mentor": mentor,
@@ -678,6 +686,7 @@ def _load_workspace(db: Session, mentorship_id: int):
         "deliverables": deliverables,
         "meetings": meetings,
         "testimonials": testimonials,
+        "messages": messages,
     }
 
 
@@ -841,3 +850,27 @@ def leave_testimonial(
             fsm.complete(ms)
         db.commit()
     return RedirectResponse(url=f"/mentorship/{mentorship_id}", status_code=303)
+
+
+@router.post("/mentorships/{mentorship_id}/messages")
+def send_message(
+    mentorship_id: int,
+    request: Request,
+    db: Session = Depends(get_session),
+    text: str = Form(...),
+):
+    """Append a chat message to the mentorship thread.
+
+    Both participants may post in any state. Empty messages and posts from a
+    non-participant are silently ignored (no write), then we redirect back so
+    the thread re-renders on reload.
+    """
+    ms = db.get(Mentorship, mentorship_id)
+    user = current_user(request, db)
+    if ms and user and user.id in (ms.mentor_id, ms.student_id) and text.strip():
+        db.add(Message(mentorship_id=ms.id, sender_id=user.id, text=text.strip()))
+        db.commit()
+    # Redirect back to the Messages tab (hash) so the full reload stays in chat.
+    # NOTE: the "#messages" fragment pairs with the hash-based tab JS in
+    # workspace.html; revisit if the overhaul moves tabs to partial swaps.
+    return RedirectResponse(url=f"/mentorship/{mentorship_id}#messages", status_code=303)
