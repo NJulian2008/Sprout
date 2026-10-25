@@ -13,9 +13,25 @@
       </div>
       <span class="status-chip {{ 'status-completed' if mentorship.status == 'completed' else 'status-confirmed' }}">{{ mentorship.status|replace('_', ' ')|title }}</span>
     </div>
-    <div class="message-placeholder">
-      <div><img src="/static/images/Sprout_Main.svg" alt="Sprout"><p class="mb0">Messaging is coming soon.</p></div>
-    </div>
+    {% if messages %}
+      <div class="thread">
+        {% for item in messages %}
+          {% set mine = current and item.sender and current.id == item.sender.id %}
+          <div class="msg {% if mine %}mine{% endif %}">
+            <div class="meta">{{ item.sender.name if item.sender else "Unknown" }} · {{ item.msg.created_at.strftime("%b %d, %I:%M %p") }}</div>
+            <div>{{ item.msg.text }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="message-placeholder">
+        <div><img src="/static/images/Sprout_Main.svg" alt="Sprout"><p class="mb0">No messages yet. Say hello 👋</p></div>
+      </div>
+    {% endif %}
+    <form method="post" action="/messages" class="inline-form">
+      <input type="text" name="text" placeholder="Write a message…" autocomplete="off" aria-label="Message" required>
+      <button class="btn sm" type="submit">Send</button>
+    </form>
     <a class="btn alt" href="/mentorship/{{ mentorship.id }}">Back to mentorship</a>
   </section>
 {% else %}

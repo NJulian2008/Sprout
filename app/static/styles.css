@@ -341,3 +341,9 @@ input::placeholder, textarea::placeholder { color: #68737d; opacity: 1; }
   .decision-actions .btn { padding-right: 10px; padding-left: 10px; font-size: 17px; }
   .sticky-actions { bottom: 56px; margin-bottom: -8px; }
 }
+
+/* ---- Chat thread (messages page) ---- */
+.thread { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+.msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; background: var(--green-light); color: var(--ink); align-self: flex-start; }
+.msg.mine { align-self: flex-end; background: var(--green); color: #fff; }
+.msg .meta { font-size: 13px; opacity: .8; margin-bottom: 2px; }

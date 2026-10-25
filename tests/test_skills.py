@@ -9,7 +9,6 @@ from app.services.skills import (
     normalize_skill_id,
 )
 
-
 # ── experience_score() ────────────────────────────────────────────────────────
 
 def test_experience_score_empty():

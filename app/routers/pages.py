@@ -26,6 +26,7 @@ from app.db.models import (
     Meeting,
     MentorProfile,
     Mentorship,
+    Message,
     StudentRequest,
     Testimonial,
     User,
@@ -901,9 +902,17 @@ def messages_page(request: Request, db: Session = Depends(get_session)):
         .first()
     )
     partner = None
+    messages = []
     if mentorship:
         partner_id = mentorship.student_id if user.role == "mentor" else mentorship.mentor_id
         partner = db.get(User, partner_id)
+        rows = (
+            db.query(Message)
+            .filter(Message.mentorship_id == mentorship.id)
+            .order_by(Message.created_at, Message.id)
+            .all()
+        )
+        messages = [{"msg": m, "sender": db.get(User, m.sender_id)} for m in rows]
     return render(
         "messages.html",
         {
@@ -911,8 +920,44 @@ def messages_page(request: Request, db: Session = Depends(get_session)):
             "current": user,
             "mentorship": mentorship,
             "partner": partner,
+            "messages": messages,
         },
     )
+
+
+@router.post("/messages")
+def send_message(
+    request: Request,
+    db: Session = Depends(get_session),
+    text: str = Form(...),
+):
+    """Append a chat message to the current mentorship thread.
+
+    Both participants may post. A non-participant never matches a mentorship
+    (so nothing is written), and empty/whitespace text is ignored. We then
+    redirect back so the thread re-renders on reload.
+    """
+    user = current_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/", status_code=303)
+    relationship_column = (
+        Mentorship.mentor_id if user.role == "mentor" else Mentorship.student_id
+    )
+    mentorship = (
+        db.query(Mentorship)
+        .filter(
+            relationship_column == user.id,
+            Mentorship.status.in_(
+                ("requested", "intro_scheduled", "intro_held", "active", "completed")
+            ),
+        )
+        .order_by(Mentorship.id.desc())
+        .first()
+    )
+    if mentorship and text.strip():
+        db.add(Message(mentorship_id=mentorship.id, sender_id=user.id, text=text.strip()))
+        db.commit()
+    return RedirectResponse(url="/messages", status_code=303)
 
 
 # ── Mentorship workspace ──────────────────────────────────────────────────────
