@@ -1,23 +1,43 @@
-{# Renders extracted skill chips + experience level badge, and a hidden JSON field.
-   Context: skill_scores (dict), experience_level, experience_score, taxonomy, field_name #}
-<div id="skill-chips-result">
-  {% if skill_scores %}
-    <p class="muted sample-note">AI estimate — edit any value below.</p>
-    <div class="chips">
-      {% for sid, conf in skill_scores.items() %}
-        <span class="chip">
-          {{ taxonomy[sid].label if sid in taxonomy else sid }}
-          <span class="conf">{{ (conf * 100)|round|int }}%</span>
-        </span>
-      {% endfor %}
-    </div>
-    <p>Experience level:
-      <span class="badge badge-{{ experience_level }}">{{ experience_level|capitalize }}</span>
-      <span class="muted">(score {{ experience_score }})</span>
-    </p>
-    <input type="hidden" name="{{ field_name }}" value='{{ skill_scores|tojson }}'>
+<div class="skill-editor" data-skill-editor>
+  {% if skill_reviewed|default(false) %}
+    <p class="skill-note">AI estimate. Edit anything that’s off.</p>
   {% else %}
-    <p class="muted">No skills detected yet. Paste resume or project text and click “Find my skills”.</p>
-    <input type="hidden" name="{{ field_name }}" value="{}">
+    <p class="secondary">Paste your resume text, then choose “Find my skills”. You can edit the results.</p>
   {% endif %}
+  <div class="chips skill-list" data-skill-list>
+    {% for sid, conf in skill_scores.items() %}
+      {% set skill_id = sid %}
+      {% set skill_name = taxonomy[sid].label if sid in taxonomy else sid|replace('_', ' ')|title %}
+      {% set confidence = (conf * 100)|round|int %}
+      {% set level = skill_levels.get(sid, 'intermediate') if skill_levels else 'intermediate' %}
+      {% include "partials/skill_chip_item.html" %}
+    {% endfor %}
+  </div>
+  {% if not skill_scores %}
+    <p class="secondary empty-skills" data-empty-skills>
+      {% if skill_reviewed %}We couldn’t find skills in that text. Add them yourself below.{% else %}Your skills will appear here.{% endif %}
+    </p>
+  {% endif %}
+  <div class="add-skill">
+    <label class="lbl" for="add-skill">Add a skill</label>
+    <div class="add-row">
+      <input type="text" id="add-skill" list="skill-suggestions" data-add-skill placeholder="Search skills" autocomplete="off">
+      <button class="btn alt sm" type="button" data-add-skill-button>Add</button>
+    </div>
+    <datalist id="skill-suggestions">
+      {% for sid, item in taxonomy.items() %}<option value="{{ item.label }}" data-skill-id="{{ sid }}"></option>{% endfor %}
+    </datalist>
+  </div>
+  <div class="skill-toast" data-skill-toast role="status" aria-live="polite" hidden>
+    <span data-toast-message></span>
+    <button type="button" data-undo-remove>Undo</button>
+  </div>
+  <input type="hidden" name="{{ field_name }}" value="{{ skill_scores|tojson }}" data-skill-scores>
+  <input type="hidden" name="skill_levels_json" value="{{ skill_levels|default({})|tojson }}" data-skill-levels>
+  <input type="hidden" name="skill_reviewed" value="{{ '1' if skill_reviewed|default(false) else '0' }}" data-skill-reviewed>
+
+  <template data-skill-template>
+    {% set skill_id = "" %}{% set skill_name = "" %}{% set confidence = 100 %}{% set level = "intermediate" %}
+    {% include "partials/skill_chip_item.html" %}
+  </template>
 </div>

@@ -1,38 +1,24 @@
-{# Mutual Confirm/Decline panel.
-   Context: ms (Mentorship), current (User), mentor (User), student (User) #}
 {% set is_mentor = current and current.id == ms.mentor_id %}
 {% set is_student = current and current.id == ms.student_id %}
-<div class="confirm-panel">
-  <div class="confirm-side">
-    <strong>{{ mentor.name }}</strong><br>
-    <span class="status-{{ 'confirmed' if ms.mentor_decision=='confirmed' else 'declined' if ms.mentor_decision=='declined' else 'waiting' }}">
-      {{ 'Confirmed' if ms.mentor_decision=='confirmed' else 'Declined' if ms.mentor_decision=='declined' else 'Waiting' }}
-    </span>
-  </div>
-  <div class="confirm-side">
-    <strong>{{ student.name }}</strong><br>
-    <span class="status-{{ 'confirmed' if ms.student_decision=='confirmed' else 'declined' if ms.student_decision=='declined' else 'waiting' }}">
-      {{ 'Confirmed' if ms.student_decision=='confirmed' else 'Declined' if ms.student_decision=='declined' else 'Waiting' }}
-    </span>
-  </div>
-</div>
-
+{% set my_decision = ms.mentor_decision if is_mentor else ms.student_decision if is_student else 'pending' %}
+{% set other_name = student.name if is_mentor else mentor.name %}
+{% set other_decision = ms.student_decision if is_mentor else ms.mentor_decision %}
 {% if ms.status == "intro_held" %}
-  {% set my_decision = ms.mentor_decision if is_mentor else ms.student_decision if is_student else 'pending' %}
-  {% if (is_mentor or is_student) and my_decision == 'pending' %}
-    <form method="post" action="/mentorships/{{ ms.id }}/decision" class="form-actions">
-      <button class="btn btn-primary" name="choice" value="confirm">Confirm — continue</button>
-      <button class="btn btn-danger" name="choice" value="decline">Decline</button>
+  {% if (is_mentor or is_student) and my_decision == "pending" %}
+    <p class="decision-question">Would you like to continue with this mentorship?</p>
+    <div class="decision-status secondary">{{ other_name }}: {{ 'confirmed' if other_decision == 'confirmed' else 'waiting for a decision' }}</div>
+    <form method="post" action="/mentorships/{{ ms.id }}/decision" class="decision-actions">
+      <button class="btn" name="choice" value="confirm">Confirm</button>
+      <button class="btn alt danger" name="choice" value="decline">Decline</button>
     </form>
   {% else %}
-    <p class="muted" style="margin-top:.75rem;">
-      Waiting on {{ student.name if ms.student_decision=='pending' else mentor.name }} to decide.
-    </p>
+    <p class="secondary">You’ve responded. Waiting for {{ other_name }}.</p>
   {% endif %}
 {% elif ms.status == "active" %}
-  <p class="status-confirmed" style="margin-top:.75rem;">Active for {{ ms.duration_weeks or 'several' }} weeks 🎉</p>
+  <div class="banner info" role="status">You both confirmed. Your mentorship is active.</div>
+{% elif ms.status == "completed" %}
+  <div class="banner info" role="status">Your mentorship is complete. Thanks for the work you did together.</div>
 {% elif ms.status == "ended" %}
-  <p class="status-declined" style="margin-top:.75rem;">This mentorship ended.
-    {% if is_student %}<a href="/student/matches">See your next-best matches →</a>{% endif %}
-  </p>
+  <p class="status-chip status-declined">Mentorship declined</p>
+  {% if is_student %}<p><a href="/student/matches">See your other matches</a></p>{% endif %}
 {% endif %}

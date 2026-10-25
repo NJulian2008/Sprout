@@ -1,104 +1,116 @@
 {% extends "base.html" %}
-{% block title %}Mentor Sign-up — Sprout{% endblock %}
+{% block title %}Mentor sign-up — Sprout{% endblock %}
 {% block content %}
-<h1>Offer to mentor</h1>
-<p class="muted">Paste your resume and we'll pull out your skills. Bounded commitment, real impact.</p>
+<ol class="steps" aria-label="Mentor sign-up progress">
+  {% for n in range(6) %}<li data-progress="{{ n }}" {% if n == 0 %}class="done"{% endif %}></li>{% endfor %}
+</ol>
+<p class="eyebrow" data-step-count>Step 1 of 6</p>
+<h1>Become a mentor</h1>
+<p class="sub">Share your experience and help a student grow.</p>
 
-<form method="post" action="/mentor/signup">
-  <div class="card">
-    <h3>About you</h3>
-    <div class="field"><label>Name</label><input type="text" name="name" required></div>
-    <div class="field"><label>Short bio</label><input type="text" name="bio_short" placeholder="One line about you"></div>
-    <div class="field"><label>Title</label><input type="text" name="title" placeholder="e.g. Senior Software Engineer"></div>
-    <div class="field"><label>Organization</label><input type="text" name="org"></div>
-    <div class="field">
-      <label>Mentor type</label>
-      <select name="mentor_type">
-        <option value="industry">Industry professional</option>
-        <option value="faculty">OSU faculty</option>
-      </select>
+<form method="post" action="/mentor/signup" data-wizard data-total-steps="6">
+  <input type="hidden" name="specialties" value="" data-select-value="specialties">
+  <input type="hidden" name="outcomes" value="" data-select-value="outcomes">
+  <input type="hidden" name="top3" value="" data-select-value="top3">
+
+  <section class="wizard-step" data-step-panel="0">
+    <div class="card">
+      <h2 class="mt0">A little about you</h2>
+      <div class="field"><label class="lbl" for="mentor-name">Name</label><input id="mentor-name" type="text" name="name" autocomplete="name" required></div>
+      <div class="field"><label class="lbl" for="mentor-title">Job title</label><input id="mentor-title" type="text" name="title" placeholder="Senior software engineer"></div>
+      <div class="field"><label class="lbl" for="mentor-org">Organization</label><input id="mentor-org" type="text" name="org"></div>
+      <div class="field"><label class="lbl" for="mentor-bio">Short bio</label><input id="mentor-bio" type="text" name="bio_short" maxlength="180" placeholder="A sentence about your work"></div>
+      <div class="field mb0"><label class="lbl" for="mentor-type">I work as</label>
+        <select id="mentor-type" name="mentor_type"><option value="industry">Industry professional</option><option value="faculty">OSU faculty</option></select>
+      </div>
     </div>
-  </div>
+    <button class="btn" type="button" data-wizard-next>Continue</button>
+  </section>
 
-  <div class="card">
-    <h3>Industry and specialties</h3>
-    <p class="muted sample-note">Choose the CS or engineering fields where you can mentor students.</p>
-    <div class="field">
-      <label for="mentor-specialties">Areas of expertise</label>
-      <select name="specialties" id="mentor-specialties" multiple required>
+  <section class="wizard-step" data-step-panel="1" hidden>
+    <div class="card">
+      <h2 class="mt0">Where can you help?</h2>
+      <p class="secondary">Choose one or more CS and engineering fields.</p>
+      <div class="chips" data-select-group="specialties" data-min="1">
         {% for value, label in specialties.items() %}
-          <option value="{{ value }}">{{ label }}</option>
+          <button class="chip select" type="button" data-value="{{ value }}" aria-pressed="false">{{ label }}</button>
         {% endfor %}
-      </select>
+      </div>
+      <p class="field-error" data-select-error="specialties" hidden>Choose at least one field.</p>
     </div>
-  </div>
+    <button class="btn" type="button" data-wizard-next>Continue</button>
+    <button class="back" type="button" data-wizard-back>Back</button>
+  </section>
 
-  <div class="card">
-    <h3>Your skills</h3>
-    <p class="muted sample-note">Paste your resume or LinkedIn text. AI estimates a confidence for each skill — edit freely.</p>
-    <div class="field">
-      <textarea name="resume_text" id="mentor-resume" placeholder="Paste resume / LinkedIn text..."></textarea>
+  <section class="wizard-step" data-step-panel="2" hidden>
+    <div class="card">
+      <h2 class="mt0">Add your experience</h2>
+      <div class="field">
+        <label class="lbl" for="mentor-resume">Resume text</label>
+        <textarea id="mentor-resume" name="resume_text" data-resume-text placeholder="Paste your resume or LinkedIn profile"></textarea>
+        <input type="hidden" id="mentor-resume-extract" name="text" data-resume-extract>
+      </div>
+      <button class="btn alt sm" type="button" data-extract-button
+              hx-post="/mentor/skills/extract" hx-include="#mentor-resume,#mentor-resume-extract"
+              hx-target="#skill-chips-result" hx-swap="innerHTML">
+        <span class="button-label">Find my skills</span>
+      </button>
+      <div class="skill-chips-area" id="skill-chips-result" aria-live="polite">
+        {% set skill_scores = {} %}{% set skill_levels = {} %}{% set experience_level = "intermediate" %}{% set experience_score = 0 %}{% set field_name = "skill_scores_json" %}{% set skill_reviewed = false %}
+        {% include "partials/skill_chips.html" %}
+      </div>
+      <div class="field mt16 mb0">
+        <label class="lbl" for="additional-experiences">Anything else you can mentor on?</label>
+        <textarea id="additional-experiences" name="additional_experiences" placeholder="Projects, tools or experience not listed above"></textarea>
+      </div>
     </div>
-    <button type="button" class="btn btn-secondary btn-sm"
-            hx-post="/mentor/skills/extract"
-            hx-include="#mentor-resume"
-            hx-target="#skill-chips-result"
-            hx-swap="outerHTML">Find my skills</button>
-    {% set skill_scores = {} %}{% set experience_level = "intermediate" %}{% set experience_score = 0 %}{% set field_name = "skill_scores_json" %}
-    {% include "partials/skill_chips.html" %}
-    <div class="field" style="margin-top:1rem;">
-      <label>Additional experiences</label>
-      <textarea name="additional_experiences" placeholder="Anything else you'd mentor on"></textarea>
-    </div>
-  </div>
+    <button class="btn" type="button" data-wizard-next>Continue</button>
+    <button class="back" type="button" data-wizard-back>Back</button>
+  </section>
 
-  <div class="card">
-    <h3>What do you want to help with?</h3>
-    <input type="hidden" name="outcomes" value="">
-    <div class="chips" id="outcomes">
-      {% for val, lab in [("learn_skill","Teach a skill"),("build_project","Build a project"),("career_navigation","Career guidance"),("research","Research")] %}
-        <span class="chip chip-selectable" data-outcome="{{ val }}">{{ lab }}</span>
-      {% endfor %}
+  <section class="wizard-step" data-step-panel="3" hidden>
+    <div class="card">
+      <h2 class="mt0">What can you help students do?</h2>
+      <p class="secondary">Choose all that fit.</p>
+      <div class="chips" data-select-group="outcomes">
+        {% for val, lab in [("learn_skill","Learn a skill"),("build_project","Build a project"),("career_navigation","Plan a career"),("research","Explore research")] %}
+          <button class="chip select" type="button" data-value="{{ val }}" aria-pressed="false">{{ lab }}</button>
+        {% endfor %}
+      </div>
+      <div class="field mb0">
+        <label class="lbl" for="max-students">How many students can you mentor?</label>
+        <select id="max-students" name="max_students"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select>
+      </div>
     </div>
-    <div class="field" style="margin-top:.75rem;">
-      <label>How many students can you take?</label>
-      <select name="max_students"><option>1</option><option selected>2</option><option>3</option></select>
+    <button class="btn" type="button" data-wizard-next>Continue</button>
+    <button class="back" type="button" data-wizard-back>Back</button>
+  </section>
+
+  <section class="wizard-step" data-step-panel="4" hidden>
+    <div class="card">
+      <h2 class="mt0">When are you free?</h2>
+      <p class="secondary">Choose the times that usually work for you.</p>
+      {% set current_avail = [] %}{% set target = "availability" %}
+      {% include "partials/availability_grid.html" %}
     </div>
-  </div>
+    <button class="btn" type="button" data-wizard-next>Continue</button>
+    <button class="back" type="button" data-wizard-back>Back</button>
+  </section>
 
-  <div class="card">
-    <h3>Your availability</h3>
-    {% set current_avail = [] %}
-    {% include "partials/availability_grid.html" %}
-  </div>
-
-  <div class="card">
-    <h3>Three things that define your mentoring</h3>
-    <input type="hidden" name="top3" value="">
-    <div class="chips" id="priorities">
-      {% for val, lab in [("clear_feedback","Clear feedback"),("hands_on_building","Hands-on building"),("flexible_schedule","Flexible schedule"),("career_guidance","Career guidance"),("accountability","Accountability"),("casual_friendly","Casual & friendly"),("technical_depth","Technical depth"),("big_picture","Big picture")] %}
-        <span class="chip chip-selectable" data-priority="{{ val }}">{{ lab }}</span>
-      {% endfor %}
+  <section class="wizard-step" data-step-panel="5" hidden>
+    <div class="card">
+      <h2 class="mt0">What defines your mentoring?</h2>
+      <p class="secondary">Choose three priorities.</p>
+      <p class="selection-count" aria-live="polite"><span data-counter="top3">0</span> of 3 selected</p>
+      <div class="chips" data-select-group="top3" data-max="3" data-min="3">
+        {% for val, lab in [("clear_feedback","Clear feedback"),("hands_on_building","Hands-on building"),("flexible_schedule","Flexible schedule"),("career_guidance","Career guidance"),("accountability","Accountability"),("casual_friendly","Casual and friendly"),("technical_depth","Technical depth"),("big_picture","Big picture")] %}
+          <button class="chip select" type="button" data-value="{{ val }}" aria-pressed="false">{{ lab }}</button>
+        {% endfor %}
+      </div>
+      <p class="field-error" data-select-error="top3" hidden>Choose three priorities to continue.</p>
     </div>
-  </div>
-
-  <div class="form-actions"><button class="btn btn-primary">Create mentor profile</button></div>
+    <button class="btn" type="submit">Create my profile</button>
+    <button class="back" type="button" data-wizard-back>Back</button>
+  </section>
 </form>
-
-<script>
-function multiSelect(containerId, hiddenName, attr, max) {
-  var hidden = document.querySelector('input[name="'+hiddenName+'"]');
-  var sel = [];
-  document.querySelectorAll('#'+containerId+' .chip-selectable').forEach(function(c){
-    c.addEventListener('click', function(){
-      var v = c.getAttribute(attr);
-      if (c.classList.contains('selected')) { c.classList.remove('selected'); sel = sel.filter(function(x){return x!==v;}); }
-      else if (!max || sel.length < max) { c.classList.add('selected'); sel.push(v); }
-      hidden.value = sel.join(',');
-    });
-  });
-}
-multiSelect('outcomes','outcomes','data-outcome',null);
-multiSelect('priorities','top3','data-priority',3);
-</script>
 {% endblock %}

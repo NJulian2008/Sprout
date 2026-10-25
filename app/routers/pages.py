@@ -51,6 +51,42 @@ def _parse_multi(form_value: str | None) -> list[str]:
     return [v.strip() for v in form_value.split(",") if v.strip()]
 
 
+def _parse_skill_scores(raw: str | None) -> dict[str, float]:
+    """Parse the optional skill editor payload while preserving old submissions."""
+    try:
+        values = json.loads(raw or "{}")
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(values, dict):
+        return {}
+    scores = {}
+    for skill_id, value in values.items():
+        try:
+            score = float(value)
+        except (TypeError, ValueError):
+            continue
+        if skill_id and 0 <= score <= 1:
+            scores[str(skill_id)] = score
+    return scores
+
+
+def _parse_skill_levels(raw: str | None, scores: dict[str, float]) -> dict[str, str]:
+    """Read edited skill levels, deriving valid defaults for older clients."""
+    try:
+        values = json.loads(raw or "{}")
+    except (TypeError, json.JSONDecodeError):
+        values = {}
+    if not isinstance(values, dict):
+        values = {}
+    allowed = {"beginner", "intermediate", "advanced"}
+    return {
+        skill_id: values.get(skill_id)
+        if values.get(skill_id) in allowed
+        else experience_level(score)
+        for skill_id, score in scores.items()
+    }
+
+
 def _resume_text_from_upload(upload: UploadFile) -> str:
     """Extract text from a supported resume upload."""
     suffix = Path(upload.filename or "").suffix.lower()
@@ -150,9 +186,65 @@ def student_signup_submit(
     cadence: str = Form("weekly"),
     availability: str = Form(""),
     top3: str = Form(""),
-    resume_file: UploadFile = File(...),
+    stage: str = Form("create"),
+    resume_file: UploadFile | None = File(None),
+    resume_text: str = Form(""),
+    skill_scores_json: str = Form("{}"),
+    skill_levels_json: str = Form("{}"),
+    skill_reviewed: bool = Form(False),
 ):
-    resume_text = _resume_text_from_upload(resume_file)
+    if stage == "review":
+        if not goal_text.strip():
+            raise HTTPException(status_code=422, detail="Goal is required.")
+        if specialty not in CS_ENGINEERING_SPECIALTIES:
+            raise HTTPException(status_code=422, detail="Choose a valid CS or engineering specialty.")
+        try:
+            if resume_file is None or not resume_file.filename:
+                raise HTTPException(status_code=422, detail="Upload your resume to continue.")
+            resume_text = _resume_text_from_upload(resume_file)
+        except HTTPException as exc:
+            response = render(
+                "student/signup.html",
+                {
+                    "request": request,
+                    "current": current_user(request, db),
+                    "taxonomy": load_taxonomy(),
+                    "specialties": CS_ENGINEERING_SPECIALTIES,
+                    "review_mode": False,
+                    "step": 1,
+                    "error": exc.detail,
+                    "form_data": {
+                        "name": name, "goal_text": goal_text, "specialty": specialty,
+                        "availability": availability, "top3": top3,
+                    },
+                },
+            )
+            response.status_code = 422
+            return response
+        scores = extract_skills(resume_text, db)
+        return render(
+            "student/signup.html",
+            {
+                "request": request,
+                "current": current_user(request, db),
+                "taxonomy": load_taxonomy(),
+                "specialties": CS_ENGINEERING_SPECIALTIES,
+                "review_mode": True,
+                "form_data": {
+                    "name": name, "goal_text": goal_text, "specialty": specialty,
+                    "availability": availability, "top3": top3,
+                    "resume_text": resume_text,
+                },
+                "skill_scores": scores,
+                "skill_reviewed": True,
+                "skill_levels": {sid: experience_level(score) for sid, score in scores.items()},
+                "experience_level": experience_level(experience_score(scores)),
+                "experience_score": round(experience_score(scores), 2),
+            },
+        )
+
+    if not resume_text.strip() and resume_file is not None and resume_file.filename:
+        resume_text = _resume_text_from_upload(resume_file)
     if not resume_text.strip():
         raise HTTPException(status_code=422, detail="Resume text is required.")
     if not goal_text.strip():
@@ -165,7 +257,12 @@ def student_signup_submit(
     db.add(user)
     db.flush()
 
-    scores = extract_skills(resume_text, db)
+    # Existing clients still upload and parse on submit. The review step sends
+    # its edited score and level payloads, which take precedence when present.
+    scores = _parse_skill_scores(skill_scores_json)
+    if not skill_reviewed and not scores:
+        scores = extract_skills(resume_text, db)
+    levels = _parse_skill_levels(skill_levels_json, scores)
     goal_skills = extract_skills(goal_text, db)
     goal_type = _infer_goal_type(goal_text)
 
@@ -181,6 +278,7 @@ def student_signup_submit(
         top3=_parse_multi(top3),
         resume_text=resume_text,
         skill_scores=scores,
+        skill_levels=levels,
         experience_score=exp_s,
         experience_level=experience_level(exp_s),
     )
@@ -321,6 +419,12 @@ def student_matches(request: Request, db: Session = Depends(get_session)):
                     "mentor": mentor,
                     "profile": profile,
                     "overlap": overlap,
+                    "requested": db.query(Mentorship)
+                    .filter(
+                        Mentorship.request_id == req.id,
+                        Mentorship.mentor_id == m.mentor_id,
+                    )
+                    .first() is not None,
                 }
             )
 
@@ -373,6 +477,8 @@ def student_skills_extract(
         {
             "request": request,
             "skill_scores": scores,
+            "skill_levels": {sid: experience_level(score) for sid, score in scores.items()},
+            "skill_reviewed": True,
             "experience_level": experience_level(exp_s),
             "experience_score": round(exp_s, 2),
             "taxonomy": load_taxonomy(),
@@ -396,7 +502,16 @@ def student_dashboard(request: Request, db: Session = Depends(get_session)):
     for ms in mentorships:
         mentor = db.get(User, ms.mentor_id)
         deliverables = db.query(Deliverable).filter(Deliverable.mentorship_id == ms.id).all()
-        ctx_items.append({"ms": ms, "mentor": mentor, "deliverables": deliverables})
+        meetings = db.query(Meeting).filter(Meeting.mentorship_id == ms.id).all()
+        milestones = [
+            {"label": "Profile complete", "done": True, "current": False},
+            {"label": "Intro requested", "done": ms.status != "requested", "current": ms.status == "requested"},
+            {"label": "Mentor confirmed", "done": ms.status in ("active", "completed"), "current": ms.status in ("intro_scheduled", "intro_held")},
+            {"label": "First meeting", "done": any(m.number == 0 and m.status == "held" for m in meetings), "current": ms.status == "active" and not any(m.number == 0 and m.status == "held" for m in meetings)},
+            {"label": "Deliverables", "done": bool(deliverables) and all(d.status == "done" for d in deliverables), "current": ms.status == "active" and (not deliverables or any(d.status != "done" for d in deliverables))},
+            {"label": "Complete", "done": ms.status == "completed", "current": False},
+        ]
+        ctx_items.append({"ms": ms, "mentor": mentor, "deliverables": deliverables, "milestones": milestones})
     return render(
         "student/dashboard.html",
         {
@@ -434,6 +549,8 @@ def mentor_signup_submit(
     mentor_type: str = Form("industry"),
     resume_text: str = Form(""),
     skill_scores_json: str = Form("{}"),
+    skill_levels_json: str = Form("{}"),
+    skill_reviewed: bool = Form(False),
     additional_experiences: str = Form(""),
     outcomes: str = Form(""),
     availability: str = Form(""),
@@ -460,22 +577,21 @@ def mentor_signup_submit(
     db.add(user)
     db.flush()
 
-    try:
-        posted = json.loads(skill_scores_json) if skill_scores_json else {}
-    except json.JSONDecodeError:
-        posted = {}
-    if posted:
-        scores = {k: float(v) for k, v in posted.items()}
+    posted = _parse_skill_scores(skill_scores_json)
+    if posted or skill_reviewed:
+        scores = posted
     elif resume_text.strip():
         scores = extract_skills(resume_text, db)
     else:
         scores = {}
+    levels = _parse_skill_levels(skill_levels_json, scores)
 
     exp_s = experience_score(scores)
     profile = MentorProfile(
         user_id=user.id,
         resume_text=resume_text,
         skill_scores=scores,
+        skill_levels=levels,
         experience_score=exp_s,
         experience_level=experience_level(exp_s),
         additional_experiences=additional_experiences,
@@ -504,6 +620,8 @@ def mentor_skills_extract(
         {
             "request": request,
             "skill_scores": scores,
+            "skill_levels": {sid: experience_level(score) for sid, score in scores.items()},
+            "skill_reviewed": True,
             "experience_level": experience_level(exp_s),
             "experience_score": round(exp_s, 2),
             "taxonomy": load_taxonomy(),
@@ -593,6 +711,7 @@ def mentor_profile(mentor_id: int, request: Request, db: Session = Depends(get_s
             "current": current_user(request, db),
             "mentor": mentor,
             "profile": profile,
+            "skill_levels": dict(profile.skill_levels) if profile else {},
             "current_students": current_students,
             "past_students": past_students,
             "meetings_held": meetings_held,
@@ -623,7 +742,12 @@ def availability_page(request: Request, db: Session = Depends(get_session)):
         current_avail = list(req.availability) if req else []
     return render(
         "availability.html",
-        {"request": request, "current": user, "current_avail": current_avail},
+        {
+            "request": request,
+            "current": user,
+            "current_avail": current_avail,
+            "saved": request.query_params.get("saved") == "1",
+        },
     )
 
 
@@ -649,7 +773,7 @@ def availability_save(
         if req:
             req.availability = avail
     db.commit()
-    return RedirectResponse(url="/availability", status_code=303)
+    return RedirectResponse(url="/availability?saved=1", status_code=303)
 
 
 # ── Mentorship workspace ──────────────────────────────────────────────────────
@@ -733,6 +857,17 @@ def record_decision(
 ):
     ms = db.get(Mentorship, mentorship_id)
     user = current_user(request, db)
+    if (
+        ms
+        and ms.status == "requested"
+        and user
+        and user.id == ms.mentor_id
+        and choice == "decline"
+    ):
+        ms.status = "ended"
+        ms.mentor_decision = "declined"
+        db.commit()
+        return RedirectResponse(url="/mentor/dashboard", status_code=303)
     side = "mentor" if user and user.id == ms.mentor_id else "student"
     fsm.decide(ms, side, choice)
     db.commit()
@@ -840,4 +975,4 @@ def leave_testimonial(
         if ms.status == "active":
             fsm.complete(ms)
         db.commit()
-    return RedirectResponse(url=f"/mentorship/{mentorship_id}", status_code=303)
+    return RedirectResponse(url=f"/mentorship/{mentorship_id}?completed=1", status_code=303)

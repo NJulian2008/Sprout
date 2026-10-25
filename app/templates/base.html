@@ -1,36 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
   <title>{% block title %}Sprout{% endblock %}</title>
+  <link rel="icon" href="/static/images/Sprout_Main.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/grid.js" defer></script>
+  <script src="/static/ui.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a href="/" class="brand">🌱 Sprout</a>
-    <nav class="nav">
-      <a href="/student/signup">For Students</a>
-      <a href="/mentor/signup">For Mentors</a>
-      <a href="/demo" class="nav-demo">Demo Panel</a>
-    </nav>
+  {% set home = '/mentor/dashboard' if current and current.role == 'mentor' else ('/student/dashboard' if current else '/') %}
+  {% set page = request.url.path if request else '/' %}
+  <header class="site-header">
+    <a class="home" href="{{ home }}" aria-label="Sprout home">
+      <img class="wordmark" src="/static/images/Sprout_Text.svg" alt="Sprout">
+    </a>
     {% if current %}
-    <div class="role-banner role-{{ current.role }}">
-      Viewing as <strong>{{ current.name }}</strong> ({{ current.role|capitalize }})
-    </div>
-    {% else %}
-    <div class="role-banner role-none">Not signed in — pick a role on the Demo Panel</div>
+      <span class="role-pill">{{ 'Mentor view' if current.role == 'mentor' else 'Student view' }}</span>
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="{{ home }}" {% if 'dashboard' in page %}aria-current="page"{% endif %}>Dashboard</a>
+        <a href="/availability" {% if page == '/availability' %}aria-current="page"{% endif %}>Availability</a>
+        {% if current.role == 'mentor' %}<a href="/mentors/{{ current.id }}" {% if page.startswith('/mentors/') %}aria-current="page"{% endif %}>Profile</a>{% endif %}
+      </nav>
     {% endif %}
   </header>
 
-  <main class="container">
+  <main class="wrap {% block main_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer">
-    <p>All people, resumes, and projects in this app are <strong>invented sample data</strong>
-       for the HackOHI/O demo. No real personal data is stored.</p>
-  </footer>
+  {% if current %}
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <a href="{{ home }}" {% if 'dashboard' in page %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="/availability" {% if page == '/availability' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+        <span>Availability</span>
+      </a>
+      {% if current.role == 'mentor' %}
+        <a href="/mentors/{{ current.id }}" {% if page.startswith('/mentors/') %}aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span>Profile</span>
+        </a>
+      {% endif %}
+    </nav>
+  {% endif %}
 </body>
 </html>

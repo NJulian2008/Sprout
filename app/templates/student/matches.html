@@ -1,63 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Your Matches — Sprout{% endblock %}
+{% block title %}Your top matches — Sprout{% endblock %}
 {% block content %}
-<h1>Your top 3 mentors</h1>
-{% if req %}
-<p class="muted">For your goal: <strong>{{ req.goal_text }}</strong> ·
-  {{ req.specialty|replace("_", " ")|title }} ·
-  your level: <span class="badge badge-{{ req.experience_level }}">{{ req.experience_level|capitalize }}</span></p>
+<h1>Your top matches</h1>
+{% if req %}<p class="sub">Mentors for: <strong>{{ req.goal_text }}</strong></p>{% endif %}
+
+{% if matches|selectattr('requested')|list %}
+  <div class="banner info" role="status">You’ve requested an introduction. <a href="/student/dashboard">View your dashboard</a>.</div>
 {% endif %}
 
 {% if not matches %}
-  <div class="empty">No matches yet. <a href="/student/signup">Complete sign-up</a> to see mentors.</div>
+  <div class="empty-state">
+    <img src="/static/images/Sprout_Main.svg" alt="Sprout">
+    <p>We don’t have a match for you yet.</p>
+    <a class="btn" href="/student/signup">Update your profile</a>
+  </div>
 {% endif %}
 
 {% for item in matches %}
-  {% set m = item.match %}{% set mentor = item.mentor %}{% set p = item.profile %}
-  <div class="card match-card">
-    <div class="card-row">
-      <img class="avatar" src="{{ mentor.headshot_url }}" alt="{{ mentor.name }}">
-      <div style="flex:1;">
-        <div class="match-rank">Match #{{ m.rank }} · fit {{ m.score|round|int }}/100</div>
-        <h3 style="margin:.2rem 0;">
-          <a href="/mentors/{{ mentor.id }}">{{ mentor.name }}</a>
-          <span class="badge badge-{{ mentor.mentor_type }}">{{ mentor.mentor_type|capitalize }}</span>
-        </h3>
-        <p class="muted" style="margin:.2rem 0;">{{ mentor.title }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
-
-        <p><strong>Why this match:</strong> {{ m.explanation }}</p>
-
-        <p style="margin:.4rem 0;">
-          Levels:
-          <span class="badge badge-{{ p.experience_level }}">{{ p.experience_level|capitalize }} mentor</span>
-          <span class="badge badge-{{ req.experience_level }}">{{ req.experience_level|capitalize }} you</span>
-        </p>
-
-        <div class="chips">
-          {% for sid, conf in p.skill_scores.items() %}
-            {% if sid in req.skills_to_learn %}
-              <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid }} <span class="conf">{{ (conf*100)|round|int }}%</span></span>
-            {% endif %}
-          {% endfor %}
-        </div>
-
-        {% if item.overlap %}
-          <p class="muted sample-note">Overlapping times: {{ item.overlap|join(", ") }}</p>
-        {% else %}
-          <p class="muted sample-note">Schedule needs discussion</p>
-        {% endif %}
-
-        {% if p.top3 %}
-          <p class="sample-note">Values: {{ p.top3|join(", ")|replace("_", " ") }}</p>
-        {% endif %}
-
-        <form method="post" action="/student/requests" style="margin-top:.6rem;">
-          <input type="hidden" name="match_id" value="{{ m.id }}">
-          <input type="text" name="note" placeholder="Add a one-line note (optional)" style="margin-bottom:.5rem;">
-          <button class="btn btn-primary btn-sm">Request intro meeting</button>
-        </form>
+  {% set match = item.match %}{% set mentor = item.mentor %}{% set profile = item.profile %}
+  <article class="card match-card">
+    <div class="match-top">
+      <span class="avatar"><img src="{{ mentor.headshot_url }}" alt=""></span>
+      <div class="match-person">
+        <h2 class="match-name"><a href="/mentors/{{ mentor.id }}">{{ mentor.name }}</a></h2>
+        <p class="secondary">{{ mentor.title }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
       </div>
+      <div class="fit-score"><strong>{{ match.score|round|int }}</strong><span>fit</span></div>
     </div>
-  </div>
+    <p class="why-match"><strong>Why this match</strong> · {{ (match.explanation or "Your goals and areas of experience are a good fit.")|truncate(180, true, "…") }}</p>
+    {% set shared = namespace(count=0) %}
+    <div class="chips compact-chips">
+      {% for sid, conf in profile.skill_scores.items() if sid in req.skills_to_learn and shared.count < 3 %}
+        <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid|replace('_', ' ')|title }}</span>
+        {% set shared.count = shared.count + 1 %}
+      {% endfor %}
+    </div>
+    <p class="overlap">{% if item.overlap %}Free together: {{ item.overlap[:2]|join(", ")|replace("-", " ")|lower }}{% else %}You can work out a time together{% endif %}</p>
+    {% if item.requested %}
+      <button class="btn" type="button" disabled>Requested ✓</button>
+    {% else %}
+      <form method="post" action="/student/requests">
+        <input type="hidden" name="match_id" value="{{ match.id }}">
+        <input type="hidden" name="note" value="">
+        <button class="btn" type="submit">Request intro</button>
+      </form>
+    {% endif %}
+  </article>
 {% endfor %}
 {% endblock %}
