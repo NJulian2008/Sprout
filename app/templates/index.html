@@ -1,16 +1,13 @@
 {% extends "base.html" %}
+{% block title %}Sprout — grow with the right mentor{% endblock %}
 {% block content %}
-<div class="hero">
-  <h1>Grow with a mentor who fits</h1>
-  <p class="muted">Sprout connects students with industry pros and faculty for short, goal-driven mentorships.
-     Tell us your goal, and we match you on skills, outcomes, and schedule.</p>
-  <div class="cta">
-    <a href="/student/signup" class="btn btn-primary">Continue as a Student</a>
-    <a href="/mentor/signup" class="btn btn-secondary">Continue as a Mentor</a>
+<section class="hero">
+  <img class="leaf" src="/static/images/Sprout_Main.svg" alt="Sprout">
+  <h1>Grow with the right mentor.</h1>
+  <p class="sub">Find support for your next step.</p>
+  <div class="hero-actions">
+    <a class="btn" href="/student/signup">I’m a student</a>
+    <a class="btn alt" href="/mentor/signup">I’m a mentor</a>
   </div>
-  <p class="sample-note" style="margin-top:1.5rem;">
-    This is a demo. All people and data are invented sample data.
-    Use the <a href="/demo">Demo Panel</a> to switch roles or reset.
-  </p>
-</div>
+</section>
 {% endblock %}

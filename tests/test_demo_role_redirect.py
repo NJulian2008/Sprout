@@ -103,8 +103,11 @@ def test_sessionless_landing_shows_ctas(client):
     c, _ = client
     r = c.get("/")
     assert r.status_code == 200
-    assert "Student" in r.text
-    assert "Mentor" in r.text
+    # newUI landing CTAs (apostrophe is HTML-escaped, so match on the stable tail)
+    assert "a student" in r.text
+    assert "a mentor" in r.text
+    assert "/student/signup" in r.text
+    assert "/mentor/signup" in r.text
 
 
 def test_unknown_user_falls_back_to_landing(client):

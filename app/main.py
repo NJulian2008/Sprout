@@ -46,7 +46,10 @@ async def lifespan(app: FastAPI):
             connection.execute(
                 text("ALTER TABLE mentorprofile ADD COLUMN specialties JSON NOT NULL DEFAULT '[]'")
             )
-
+        if "skill_levels" not in mentor_columns:
+            connection.execute(
+                text("ALTER TABLE mentorprofile ADD COLUMN skill_levels JSON NOT NULL DEFAULT '{}'")
+            )
         request_columns = {
             column["name"] for column in inspect(connection).get_columns("studentrequest")
         }
@@ -56,6 +59,10 @@ async def lifespan(app: FastAPI):
                     "ALTER TABLE studentrequest ADD COLUMN specialty VARCHAR NOT NULL "
                     "DEFAULT 'computer_science'"
                 )
+            )
+        if "skill_levels" not in request_columns:
+            connection.execute(
+                text("ALTER TABLE studentrequest ADD COLUMN skill_levels JSON NOT NULL DEFAULT '{}'")
             )
     logger.info("Sprout startup complete (LLM_MODE=%s)", settings.llm_mode)
     yield

@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Availability — Sprout{% endblock %}
 {% block content %}
-<h1>Your typical-week availability</h1>
-<p class="muted">Click the time blocks when you're usually free. We use these to suggest meeting slots.</p>
-<form method="post" action="/availability">
+<h1>Your availability</h1>
+<p class="sub">Choose the times that usually work for you.</p>
+{% if saved %}<div class="banner info" role="status">Your availability is saved.</div>{% endif %}
+<form method="post" action="/availability" class="availability-form">
   {% include "partials/availability_grid.html" %}
-  <div class="form-actions">
-    <button class="btn btn-primary">Save availability</button>
-  </div>
+  <div class="sticky-actions"><button class="btn" type="submit">Save availability</button></div>
 </form>
 {% endblock %}

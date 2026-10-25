@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Your profile — Sprout{% endblock %}
+{% block content %}
+<p class="eyebrow">Account settings</p>
+<h1>Your profile</h1>
+<p class="sub">Update the details your mentor sees.</p>
+{% if saved %}<div class="banner info" role="status">Your profile is saved.</div>{% endif %}
+{% if error %}<div class="banner danger" role="alert">{{ error }}</div>{% endif %}
+
+<form method="post" action="/student/profile">
+  <section class="card">
+    <div class="field">
+      <label class="lbl" for="profile-name">Name</label>
+      <input id="profile-name" type="text" name="name" autocomplete="name" maxlength="120" required value="{{ current.name }}">
+    </div>
+    <div class="field">
+      <label class="lbl" for="profile-major">Major or field of study</label>
+      <input id="profile-major" type="text" name="major" maxlength="120" value="{{ current.major or '' }}" placeholder="Computer science">
+    </div>
+    <div class="field">
+      <label class="lbl" for="profile-year">Year in school</label>
+      <select id="profile-year" name="year">
+        <option value="">Choose a year</option>
+        {% for year in ["First year", "Second year", "Third year", "Fourth year", "Graduate", "Other"] %}
+          <option value="{{ year }}" {% if current.year == year %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+        {% if current.year and current.year not in ["First year", "Second year", "Third year", "Fourth year", "Graduate", "Other"] %}
+          <option value="{{ current.year }}" selected>{{ current.year }}</option>
+        {% endif %}
+      </select>
+    </div>
+    <div class="field mb0">
+      <label class="lbl" for="profile-bio">A little about you</label>
+      <textarea id="profile-bio" name="bio_short" maxlength="500" placeholder="What are you interested in learning?">{{ current.bio_short or '' }}</textarea>
+    </div>
+  </section>
+  <button class="btn" type="submit">Save profile</button>
+</form>
+{% endblock %}

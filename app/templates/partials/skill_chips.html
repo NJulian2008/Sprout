@@ -1,301 +1,41 @@
-{# Renders extracted skill chips + experience level badge, and a hidden JSON field.
-   Context: skill_scores (dict), experience_level, experience_score, taxonomy, field_name
-
-   The chips are interactive: each chip has a remove button, and a free-text add
-   box (with taxonomy autocomplete) lets the user include a skill the AI missed.
-   Typed text is resolved to a canonical taxonomy id — first locally (exact
-   id/label/alias match), then via GET /api/skills/normalize for fuzzy matches
-   (rapidfuzz ≥ 85). Unknown text is rejected. Confidence values are AI
-   estimates and are displayed read-only (an added skill gets a fixed default
-   confidence). A self-initializing inline script
-   keeps the hidden `field_name` JSON in sync with the user's removals/additions
-   and recomputes the experience badge/score on the client (display only — the
-   server recomputes authoritatively at submit). The partial is HTMX-swapped
-   (hx-swap="outerHTML" into #skill-chips-result), so the script re-initializes
-   for the just-rendered fragment after every swap. #}
-<div id="skill-chips-result">
-  {% if skill_scores %}
-    <p class="muted sample-note">AI estimate — remove a skill, or add one below.</p>
-    <div class="chips" data-chips>
-      {% for sid, conf in skill_scores.items() %}
-        {% set label = taxonomy[sid].label if sid in taxonomy else sid %}
-        <span class="chip" data-chip="{{ sid }}">
-          <span class="chip-label">{{ label }}</span>
-          <span class="conf">{{ (conf * 100)|round|int }}%</span>
-          <button type="button" class="chip-remove" data-skill="{{ sid }}"
-                  aria-label="Remove {{ label }}">×</button>
-        </span>
-      {% endfor %}
-    </div>
-    <div class="chip-add-row">
-      <input type="text" class="chip-add-input" list="chip-add-options"
-             placeholder="Type a skill to add…" aria-label="Add a skill"
-             autocomplete="off">
-      <button type="button" class="chip-add" aria-label="Add skill">Add</button>
-      <span class="chip-add-error" role="alert" hidden></span>
-    </div>
-    <p>Experience level:
-      <span class="badge badge-{{ experience_level }}" data-level-badge>{{ experience_level|capitalize }}</span>
-      <span class="muted" data-score-text>(score {{ experience_score }})</span>
-    </p>
-    <input type="hidden" name="{{ field_name }}" value='{{ skill_scores|tojson }}'>
+<div class="skill-editor" data-skill-editor>
+  {% if skill_reviewed|default(false) %}
+    <p class="skill-note">AI confidence estimate. Edit anything that’s off. These scores help us understand your experience.</p>
   {% else %}
-    <p class="muted">No skills detected yet. Paste resume or project text and click “Find my skills”. Or add a skill below.</p>
-    <div class="chips" data-chips></div>
-    <div class="chip-add-row">
-      <input type="text" class="chip-add-input" list="chip-add-options"
-             placeholder="Type a skill to add…" aria-label="Add a skill"
-             autocomplete="off">
-      <button type="button" class="chip-add" aria-label="Add skill">Add</button>
-      <span class="chip-add-error" role="alert" hidden></span>
-    </div>
-    <p class="chip-exp" hidden>Experience level:
-      <span class="badge badge-{{ experience_level }}" data-level-badge>{{ experience_level|capitalize }}</span>
-      <span class="muted" data-score-text>(score {{ experience_score }})</span>
-    </p>
-    <input type="hidden" name="{{ field_name }}" value="{}">
+    <p class="secondary">Paste your resume text, then choose “Find my skills”. You can adjust the scores.</p>
   {% endif %}
-
-  {# Autocomplete options + a resolver map (label/alias/id → {id,label}) so a
-     free-text entry still resolves to a canonical taxonomy id, mirroring
-     app/services/skills.normalize_skill_id (exact id/label/alias match). Built
-     from the taxonomy already in context — no extra server wiring needed. #}
-  <datalist id="chip-add-options">
-    {% for sid, entry in taxonomy.items() %}
-      <option value="{{ entry.label }}"></option>
+  <div class="chips skill-list" data-skill-list>
+    {% for sid, conf in skill_scores.items() %}
+      {% set skill_id = sid %}
+      {% set skill_name = taxonomy[sid].label if sid in taxonomy else sid|replace('_', ' ')|title %}
+      {% set confidence = (conf * 100)|round|int %}
+      {% include "partials/skill_chip_item.html" %}
     {% endfor %}
-  </datalist>
-  <script type="application/json" data-skill-resolver>
-    {%- set ns = namespace(items=[]) -%}
-    {%- for sid, entry in taxonomy.items() -%}
-      {%- set _ = ns.items.append({"key": sid|lower, "id": sid, "label": entry.label}) -%}
-      {%- set _ = ns.items.append({"key": entry.label|lower, "id": sid, "label": entry.label}) -%}
-      {%- for alias in entry.aliases -%}
-        {%- set _ = ns.items.append({"key": alias|lower, "id": sid, "label": entry.label}) -%}
-      {%- endfor -%}
-    {%- endfor -%}
-    {{ ns.items | tojson | safe }}
-  </script>
+  </div>
+  {% if not skill_scores %}
+    <p class="secondary empty-skills" data-empty-skills>
+      {% if skill_reviewed %}We couldn’t find skills in that text. Add them yourself below.{% else %}Your skills will appear here.{% endif %}
+    </p>
+  {% endif %}
+  <div class="add-skill">
+    <label class="lbl" for="add-skill">Add a skill</label>
+    <div class="add-row">
+      <input type="text" id="add-skill" list="skill-suggestions" data-add-skill placeholder="Search skills" autocomplete="off">
+      <button class="btn alt sm" type="button" data-add-skill-button>Add</button>
+    </div>
+    <datalist id="skill-suggestions">
+      {% for sid, item in taxonomy.items() %}<option value="{{ item.label }}" data-skill-id="{{ sid }}"></option>{% endfor %}
+    </datalist>
+  </div>
+  <div class="skill-toast" data-skill-toast role="status" aria-live="polite" hidden>
+    <span data-toast-message></span>
+    <button type="button" data-undo-remove>Undo</button>
+  </div>
+  <input type="hidden" name="{{ field_name }}" value="{{ skill_scores|tojson }}" data-skill-scores>
+  <input type="hidden" name="skill_reviewed" value="{{ '1' if skill_reviewed|default(false) else '0' }}" data-skill-reviewed>
+
+  <template data-skill-template>
+    {% set skill_id = "" %}{% set skill_name = "" %}{% set confidence = 100 %}
+    {% include "partials/skill_chip_item.html" %}
+  </template>
 </div>
-
-<script>
-(function () {
-  // Scope to the just-rendered fragment. Because the partial is swapped via
-  // hx-swap="outerHTML" into #skill-chips-result, this IIFE runs after every
-  // swap and (re)wires the controls for the current fragment only — no global
-  // listeners are stacked.
-  var root = document.getElementById("skill-chips-result");
-  if (!root || root.dataset.chipsInit === "1") return;
-  root.dataset.chipsInit = "1";
-
-  var hidden = root.querySelector('input[type="hidden"]');
-  if (!hidden) return;
-
-  // Build the in-memory {skill_id: confidence(0-1)} map from the hidden JSON.
-  var map = {};
-  try {
-    var parsed = JSON.parse(hidden.value || "{}");
-    if (parsed && typeof parsed === "object") {
-      Object.keys(parsed).forEach(function (k) {
-        var v = parseFloat(parsed[k]);
-        if (!isNaN(v)) map[k] = clamp01(v);
-      });
-    }
-  } catch (e) { map = {}; }
-
-  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
-
-  function syncHidden() {
-    hidden.value = JSON.stringify(map);
-  }
-
-  // Client mirror of app/services/skills.py experience_score/experience_level.
-  function computeScore() {
-    var vals = Object.keys(map).map(function (k) { return map[k]; });
-    if (vals.length === 0) return 0;
-    vals.sort(function (a, b) { return b - a; });
-    var top = vals.slice(0, 5);
-    var sum = top.reduce(function (a, b) { return a + b; }, 0);
-    return Math.round((sum / top.length) * 100) / 100;
-  }
-
-  function levelFor(score) {
-    if (score < 0.35) return "beginner";
-    if (score < 0.65) return "intermediate";
-    return "advanced";
-  }
-
-  function recompute() {
-    var score = computeScore();
-    var level = levelFor(score);
-    var badge = root.querySelector("[data-level-badge]");
-    if (badge) {
-      badge.className = "badge badge-" + level;
-      badge.textContent = level.charAt(0).toUpperCase() + level.slice(1);
-    }
-    var scoreText = root.querySelector("[data-score-text]");
-    if (scoreText) scoreText.textContent = "(score " + score + ")";
-    // Reveal the experience line once skills exist (empty-state transition).
-    var expLine = root.querySelector(".chip-exp");
-    if (expLine && Object.keys(map).length > 0) expLine.hidden = false;
-  }
-
-  var chipsContainer = root.querySelector("[data-chips]");
-
-  function buildChip(sid, label, conf) {
-    var chip = document.createElement("span");
-    chip.className = "chip";
-    chip.setAttribute("data-chip", sid);
-
-    var labelEl = document.createElement("span");
-    labelEl.className = "chip-label";
-    labelEl.textContent = label;
-
-    var confEl = document.createElement("span");
-    confEl.className = "conf";
-    confEl.textContent = String(Math.round(conf * 100)) + "%";
-
-    var remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "chip-remove";
-    remove.setAttribute("data-skill", sid);
-    remove.setAttribute("aria-label", "Remove " + label);
-    remove.textContent = "×";
-
-    chip.appendChild(labelEl);
-    chip.appendChild(confEl);
-    chip.appendChild(remove);
-    wireChip(chip);
-    return chip;
-  }
-
-  function wireChip(chip) {
-    var remove = chip.querySelector(".chip-remove");
-    var sid = chip.getAttribute("data-chip");
-
-    if (remove) {
-      remove.addEventListener("click", function () {
-        delete map[sid];
-        if (chip.parentNode) chip.parentNode.removeChild(chip);
-        syncHidden();
-        recompute();
-      });
-    }
-  }
-
-  // Wire any server-rendered chips.
-  root.querySelectorAll('.chips [data-chip]').forEach(function (chip) {
-    wireChip(chip);
-  });
-
-  // Build the free-text resolver: {label|alias|id lowercased → {id, label}}.
-  var resolver = {};
-  var resolverScript = root.querySelector("[data-skill-resolver]");
-  if (resolverScript) {
-    try {
-      var entries = JSON.parse(resolverScript.textContent || "[]");
-      if (Array.isArray(entries)) {
-        entries.forEach(function (e) {
-          if (e && e.key) resolver[e.key] = { id: e.id, label: e.label };
-        });
-      }
-    } catch (e) { resolver = {}; }
-  }
-
-  function resolveSkill(text) {
-    var key = String(text || "").trim().toLowerCase();
-    if (!key) return null;
-    return resolver[key] || null;
-  }
-
-  // Add control (free-text input resolved to a canonical taxonomy id).
-  var addInput = root.querySelector(".chip-add-input");
-  var addBtn = root.querySelector(".chip-add");
-  var addError = root.querySelector(".chip-add-error");
-
-  function showError(msg) {
-    if (!addError) return;
-    addError.textContent = msg;
-    addError.hidden = false;
-  }
-  function clearError() {
-    if (!addError) return;
-    addError.textContent = "";
-    addError.hidden = true;
-  }
-
-  function addResolved(sid, label) {
-    clearError();
-    var existing = chipsContainer.querySelector('[data-chip="' + cssEscape(sid) + '"]');
-    if (existing || Object.prototype.hasOwnProperty.call(map, sid)) {
-      // Merge: keep the existing chip rather than duplicate (Req 2.4).
-      if (!(sid in map)) map[sid] = 0.5;
-      if (!existing) {
-        // Map had the key but the chip was missing — rebuild it.
-        chipsContainer.appendChild(buildChip(sid, label, map[sid]));
-      }
-    } else {
-      // New skill at a fixed default confidence (not user-editable).
-      map[sid] = 0.5;
-      chipsContainer.appendChild(buildChip(sid, label, map[sid]));
-    }
-    addInput.value = "";
-    syncHidden();
-    recompute();
-  }
-
-  var adding = false;
-
-  function addFromInput() {
-    if (!addInput || !chipsContainer || adding) return;
-    var raw = String(addInput.value || "").trim();
-    if (!raw) return;
-
-    // 1) Fast path: exact id/label/alias match resolved locally.
-    var resolved = resolveSkill(raw);
-    if (resolved) {
-      addResolved(resolved.id, resolved.label);
-      return;
-    }
-
-    // 2) Fall back to the server normalizer (fuzzy match ≥ 85 via rapidfuzz).
-    adding = true;
-    clearError();
-    if (addBtn) addBtn.disabled = true;
-    fetch("/api/skills/normalize?q=" + encodeURIComponent(raw), {
-      headers: { "Accept": "application/json" },
-    })
-      .then(function (resp) { return resp.ok ? resp.json() : { id: null }; })
-      .then(function (data) {
-        if (data && data.id) {
-          addResolved(data.id, data.label || data.id);
-        } else {
-          showError("Unknown skill. Pick one from the suggestions.");
-        }
-      })
-      .catch(function () {
-        showError("Couldn't check that skill. Try one from the suggestions.");
-      })
-      .finally(function () {
-        adding = false;
-        if (addBtn) addBtn.disabled = false;
-      });
-  }
-
-  if (addInput && addBtn && chipsContainer) {
-    addBtn.addEventListener("click", addFromInput);
-    addInput.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();  // don't submit the surrounding form
-        addFromInput();
-      }
-    });
-    addInput.addEventListener("input", clearError);
-  }
-
-  function cssEscape(s) {
-    if (window.CSS && CSS.escape) return CSS.escape(s);
-    return String(s).replace(/["\\\]\[\.#:>+~*^$|() ]/g, "\\$&");
-  }
-})();
-</script>
