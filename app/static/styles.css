@@ -210,3 +210,15 @@ textarea { min-height: 90px; resize: vertical; }
   .confirm-panel { flex-direction: column; }
   .role-banner { margin-left: 0; width: 100%; }
 }
+
+/* ── Chat thread ─────────────────────────────────────────────────────────── */
+.thread { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1rem; }
+.message {
+  max-width: 75%; padding: .5rem .8rem; border-radius: var(--radius);
+  background: #f3f4f6; align-self: flex-start;
+}
+.message-mine { align-self: flex-end; background: var(--green-light); }
+.message-meta { font-size: .72rem; margin-bottom: .2rem; display: flex; gap: .5rem; align-items: baseline; }
+.message-text { font-size: .9rem; white-space: pre-wrap; word-break: break-word; }
+.message-form { display: flex; gap: .5rem; }
+.message-form input[type=text] { flex: 1; }

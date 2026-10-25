@@ -108,17 +108,70 @@
 
 {# ── Messages ── #}
 <div class="tab-panel" id="panel-messages">
-  <div class="empty">Messaging is a future feature. For now, agree times in the Meetings tab.</div>
+  {% if messages %}
+    <div class="thread">
+      {% for item in messages %}
+        {% set mine = current and item.sender and current.id == item.sender.id %}
+        <div class="message {% if mine %}message-mine{% endif %}">
+          <div class="message-meta">
+            <strong>{{ item.sender.name if item.sender else "Unknown" }}</strong>
+            <span class="muted">{{ item.msg.created_at.strftime("%b %d, %I:%M %p") }}</span>
+          </div>
+          <div class="message-text">{{ item.msg.text }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">No messages yet. Say hello 👋</div>
+  {% endif %}
+
+  {% if is_mentor or is_student %}
+    <form method="post" action="/mentorships/{{ ms.id }}/messages" class="message-form">
+      <input type="text" name="text" placeholder="Write a message..." autocomplete="off" required>
+      <button class="btn btn-primary btn-sm" type="submit">Send</button>
+    </form>
+  {% else %}
+    <p class="muted sample-note">Switch to the mentor or student to join this conversation.</p>
+  {% endif %}
 </div>
 
 <script>
+// Tab switching with URL-hash persistence.
+// The active tab is mirrored into the URL (e.g. #messages) so a full-page
+// reload — such as after posting a message — lands back on the same tab.
+// NOTE: hash-based tab persistence. If the UI overhaul moves tabs to HTMX
+// partial swaps (no full reload), this hash handling can be simplified or removed.
+function activateTab(name){
+  var tabBtn = document.querySelector('.tab[data-tab="' + name + '"]');
+  var panel = document.getElementById('panel-' + name);
+  if (!tabBtn || !panel) return false;
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  tabBtn.classList.add('active');
+  panel.classList.add('active');
+  return true;
+}
+
 document.querySelectorAll('.tab').forEach(function(t){
   t.addEventListener('click', function(){
-    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
-    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
-    t.classList.add('active');
-    document.getElementById('panel-' + t.getAttribute('data-tab')).classList.add('active');
+    var name = t.getAttribute('data-tab');
+    activateTab(name);
+    // Update the hash without scrolling/adding history noise.
+    if (history.replaceState) {
+      history.replaceState(null, '', '#' + name);
+    } else {
+      location.hash = name;
+    }
   });
 });
+
+// On load, restore the tab from the hash (falls back to the first tab).
+(function(){
+  var fromHash = (location.hash || '').replace('#', '');
+  if (!fromHash || !activateTab(fromHash)) {
+    var first = document.querySelector('.tab');
+    if (first) activateTab(first.getAttribute('data-tab'));
+  }
+})();
 </script>
 {% endblock %}
