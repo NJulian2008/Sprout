@@ -10,12 +10,12 @@
     <div class="field">
       <label for="goal_text">What do you want to achieve?</label>
       <input type="text" name="goal_text" id="goal_text" required
-             placeholder="e.g. Build my first real machine learning project">
+             placeholder="e.g. Build my first industry machine learning project">
     </div>
     <div class="field">
       <label for="specialty">Industry or specialty</label>
       <select name="specialty" id="specialty" required>
-        <option value="" disabled selected>Choose a CS or engineering field</option>
+        <option value="" disabled selected>Choose your targeted field</option>
         {% for value, label in specialties.items() %}
           <option value="{{ value }}">{{ label }}</option>
         {% endfor %}
