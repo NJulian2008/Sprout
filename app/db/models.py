@@ -62,6 +62,8 @@ class MentorProfile(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), primary_key=True)
     resume_text: Mapped[str] = mapped_column(String, default="")
     skill_scores: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
+    # Kept for older database rows; the redesigned skill editor no longer exposes levels.
+    skill_levels: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
     experience_score: Mapped[float] = mapped_column(default=0.0)
     experience_level: Mapped[str] = mapped_column(String, default="intermediate")
     additional_experiences: Mapped[str] = mapped_column(String, default="")
@@ -69,7 +71,7 @@ class MentorProfile(Base):
     outcomes: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     availability: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     top3: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
-    max_students: Mapped[int] = mapped_column(default=2)
+    max_students: Mapped[int] = mapped_column(default=1)
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +93,8 @@ class StudentRequest(Base):
     top3: Mapped[list] = mapped_column(MutableList.as_mutable(JSON), default=list)
     resume_text: Mapped[str] = mapped_column(String, default="")
     skill_scores: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
+    # Kept for older database rows; the redesigned skill editor no longer exposes levels.
+    skill_levels: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSON), default=dict)
     experience_score: Mapped[float] = mapped_column(default=0.0)
     experience_level: Mapped[str] = mapped_column(String, default="beginner")
     project_title: Mapped[str] = mapped_column(String, default="")

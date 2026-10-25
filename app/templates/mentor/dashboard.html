@@ -1,72 +1,100 @@
 {% extends "base.html" %}
-{% block title %}Mentor Dashboard — Sprout{% endblock %}
+{% block title %}Mentor dashboard — Sprout{% endblock %}
+{% block main_class %}wide{% endblock %}
 {% block content %}
-<h1>Mentor dashboard</h1>
+<p class="eyebrow">{{ 'Professional view' if current and current.mentor_type == 'industry' else 'Faculty mentor view' }}</p>
+<h1>{{ 'Your professional dashboard' if current and current.mentor_type == 'industry' else 'Your mentoring' }}</h1>
+<p class="sub">Keep up with your students and new introductions.</p>
 
-<h2>New intro requests</h2>
-{% if not requests_new %}<div class="empty">No new requests right now.</div>{% endif %}
-{% for it in requests_new %}
-  {% set ms = it.ms %}{% set student = it.student %}{% set req = it.req %}
-  <div class="card">
-    <div class="card-row">
-      <img class="avatar-sm" src="{{ student.headshot_url }}" alt="{{ student.name }}">
-      <div style="flex:1;">
-        <h3 style="margin:.1rem 0;">{{ student.name }}</h3>
-        <p class="muted" style="margin:0;">{{ student.major }}{% if student.year %} · {{ student.year }}{% endif %}</p>
-        {% if req %}<p><strong>Goal:</strong> {{ req.goal_text }}</p>{% endif %}
-        {% if ms.note_from_student %}<p class="sample-note">Note: "{{ ms.note_from_student }}"</p>{% endif %}
-        {% if it.match %}<p><strong>Why matched:</strong> {{ it.match.explanation }}</p>{% endif %}
-      </div>
-    </div>
-    <form method="post" action="/mentorships/{{ ms.id }}/intro" class="form-actions" style="align-items:flex-end;">
-      <div class="field" style="flex:1;margin:0;">
-        <label>Pick an intro slot</label>
-        <select name="slot">
-          {% for s in it.slots %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-          <option value="To be arranged">To be arranged</option>
-        </select>
-      </div>
-      <button class="btn btn-primary">Schedule intro</button>
-    </form>
+<section class="dashboard-section">
+  <div class="section-heading">
+    <div><h2 class="mt0">Students</h2></div>
+    <span class="badge">{{ students|length }}</span>
   </div>
-{% endfor %}
+  {% if not students %}
+    <div class="empty-state compact-empty"><img src="/static/images/Sprout_Main.svg" alt="Sprout"><p>No students yet.</p></div>
+  {% endif %}
+  <div class="mentee-list">
+    {% for item in students %}
+      {% set ms = item.ms %}{% set student = item.student %}
+      {% set pending = item.deliverables|rejectattr("status", "equalto", "done")|list %}
+      <a class="card mentee-card" href="/mentorship/{{ ms.id }}">
+        <div class="mentee-person">
+          <span class="avatar"><img src="{{ student.headshot_url }}" alt=""></span>
+          <div class="grow">
+            <h3>{{ student.name }}</h3>
+            {% if student.major or student.year %}<p class="secondary mb0">{{ student.major or 'Student' }}{% if student.year %} · {{ student.year }}{% endif %}</p>{% endif %}
+            <p class="secondary mb0">{{ ms.cadence|replace("_", " ")|title }}{% if ms.duration_weeks %} · {{ ms.duration_weeks }} weeks{% endif %}</p>
+          </div>
+          <span class="status-chip {{ 'status-completed' if ms.status == 'completed' else 'status-pending' if ms.status in ('intro_scheduled', 'intro_held') else 'status-confirmed' }}">{{ {'intro_scheduled':'Awaiting intro', 'intro_held':'Needs decision', 'active':'Active', 'completed':'Completed'}.get(ms.status, ms.status|title) }}</span>
+        </div>
+        <div class="mentee-card-detail">
+          {% if student.bio_short %}<p><strong>About</strong><span>{{ student.bio_short }}</span></p>{% endif %}
+          {% if item.next_meeting %}
+            <p><strong>{{ 'Intro' if item.next_meeting.number == 0 else 'Next meeting' }}</strong><span>{{ item.next_meeting.agreed_time_text or 'Time to be confirmed' }}</span></p>
+          {% elif ms.status == 'intro_held' %}
+            <p><strong>Next step</strong><span>Confirm whether to continue</span></p>
+          {% elif ms.status == 'completed' %}
+            <p><strong>Status</strong><span>Mentorship complete</span></p>
+          {% else %}
+            <p><strong>Next meeting</strong><span>Not scheduled yet</span></p>
+          {% endif %}
+          {% if pending %}<p><strong>Next deliverable</strong><span>{{ pending[0].text }}</span></p>{% endif %}
+        </div>
+        <span class="mentee-open" aria-hidden="true">Open mentorship <span>→</span></span>
+      </a>
+    {% endfor %}
+  </div>
+</section>
 
-<h2>Awaiting confirmation</h2>
-{% if not awaiting %}<div class="empty">Nothing waiting.</div>{% endif %}
-{% for it in awaiting %}
-  {% set ms = it.ms %}{% set student = it.student %}
-  <div class="card">
-    <h3>{{ student.name }}</h3>
-    {% if ms.status == "intro_scheduled" %}
-      <p class="muted">Intro scheduled. Mark it held once you've met.</p>
-      <form method="post" action="/mentorships/{{ ms.id }}/intro/held">
-        <button class="btn btn-secondary btn-sm">Mark intro as held</button>
+<section class="dashboard-section requests-section">
+  <div class="section-heading">
+    <div><h2 class="mt0">New requests</h2></div>
+    <span class="badge">{{ requests_new|length }}</span>
+  </div>
+  {% if not requests_new %}<p class="secondary">No new requests right now.</p>{% endif %}
+  {% for item in requests_new %}
+    {% set ms = item.ms %}{% set student = item.student %}{% set req = item.req %}
+    <article class="card new-request-card">
+      <div class="card-heading">
+        <span class="avatar"><img src="{{ student.headshot_url }}" alt=""></span>
+        <div class="grow">
+          <h3>{{ student.name }}</h3>
+          {% if student.major or student.year %}<p class="secondary mb0">{{ student.major or 'Student' }}{% if student.year %} · {{ student.year }}{% endif %}</p>{% endif %}
+          {% if student.bio_short %}<p class="secondary mb0">{{ student.bio_short }}</p>{% endif %}
+          {% if req %}<p class="secondary mb0">{{ req.goal_text }}</p>{% endif %}
+        </div>
+      </div>
+      {% if ms.note_from_student or (item.match and item.match.explanation) %}
+        <div class="request-context">
+          {% if ms.note_from_student %}<p><strong>Student note:</strong> “{{ ms.note_from_student }}”</p>{% endif %}
+          {% if item.match and item.match.explanation %}<p><strong>Why you matched:</strong> {{ item.match.explanation }}</p>{% endif %}
+        </div>
+      {% endif %}
+      <div class="request-actions">
+        <button class="btn" type="button" data-show-schedule aria-expanded="false" aria-controls="schedule-{{ ms.id }}">Accept</button>
+        <form method="post" action="/mentorships/{{ ms.id }}/decision">
+          <input type="hidden" name="choice" value="decline">
+          <button class="btn alt danger" type="submit">Decline</button>
+        </form>
+      </div>
+      <form method="post" action="/mentorships/{{ ms.id }}/intro" class="schedule-panel" id="schedule-{{ ms.id }}" hidden>
+        <fieldset>
+          <legend>Choose a time you’re both free</legend>
+          <div class="slot-options">
+            {% if item.slots %}
+              {% for slot in item.slots %}
+                <label class="slot-choice"><input type="radio" name="slot" value="{{ slot }}" {% if loop.first %}checked{% endif %}><span>{{ slot|replace("-", " ") }}</span></label>
+              {% endfor %}
+            {% else %}
+              <p class="secondary">No shared times yet. You can arrange a time together.</p>
+              <label class="slot-choice"><input type="radio" name="slot" value="To be arranged" checked><span>Arrange a time</span></label>
+            {% endif %}
+          </div>
+        </fieldset>
+        <button class="btn" type="submit">Send times</button>
       </form>
-    {% elif ms.status == "intro_held" %}
-      {% set mentor = current %}
-      {% include "partials/confirm_decline.html" with context %}
-    {% endif %}
-    <p style="margin-top:.5rem;"><a href="/mentorship/{{ ms.id }}">Open workspace →</a></p>
-  </div>
-{% endfor %}
-
-<h2>Your students</h2>
-{% if not active %}<div class="empty">No active mentorships.</div>{% endif %}
-{% for it in active %}
-  {% set ms = it.ms %}{% set student = it.student %}
-  <div class="card">
-    <div class="card-row">
-      <img class="avatar-sm" src="{{ student.headshot_url }}" alt="{{ student.name }}">
-      <div style="flex:1;">
-        <h3 style="margin:.1rem 0;">{{ student.name }} <span class="status-chip status-{{ 'done' if ms.status=='completed' else 'approved' }}">{{ ms.status }}</span></h3>
-        <p class="muted" style="margin:0;">Cadence: {{ ms.cadence|replace("_"," ") }}{% if ms.duration_weeks %} · {{ ms.duration_weeks }} weeks{% endif %}</p>
-      </div>
-      <a class="btn btn-secondary btn-sm" href="/mentorship/{{ ms.id }}">Open workspace</a>
-    </div>
-    {% if it.deliverables %}
-      <p style="margin-top:.5rem;"><strong>Deliverables for next meeting:</strong></p>
-      <ul>{% for d in it.deliverables if d.status != "done" %}<li>{{ d.text }} <span class="status-chip status-{{ d.status }}">{{ d.status }}</span></li>{% endfor %}</ul>
-    {% endif %}
-  </div>
-{% endfor %}
+    </article>
+  {% endfor %}
+</section>
 {% endblock %}

@@ -46,7 +46,7 @@ class MentorCandidate:
     outcomes: list[str]
     availability: list[str]
     active_students: int = 0
-    max_students: int = 2
+    max_students: int = 1
     schedule_needs_discussion: bool = False
     specialties: list[str] = field(default_factory=list)
 

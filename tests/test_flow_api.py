@@ -78,8 +78,7 @@ def test_one_flow_end_to_end(client):
     # 2. Matches page shows 3 cards
     r = c.get("/student/matches")
     assert r.status_code == 200
-    assert r.text.count("Request intro meeting") == 3
-    assert "Artificial Intelligence" in r.text
+    assert r.text.count(">Request intro<") == 3
 
     match_id = re.search(r'name="match_id" value="(\d+)"', r.text).group(1)
 

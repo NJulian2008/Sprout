@@ -1,54 +1,75 @@
 {% extends "base.html" %}
 {% block title %}{{ mentor.name }} — Sprout{% endblock %}
+{% block main_class %}wide{% endblock %}
 {% block content %}
-<div class="card">
-  <div class="card-row">
-    <img class="avatar" src="{{ mentor.headshot_url }}" alt="{{ mentor.name }}">
-    <div style="flex:1;">
-      <h1 style="margin:.1rem 0;">{{ mentor.name }}
-        <span class="badge badge-{{ mentor.mentor_type }}">{{ mentor.mentor_type|capitalize }}</span>
-      </h1>
-      <p class="muted">{{ mentor.title }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
-      {% if mentor.bio_short %}<p>{{ mentor.bio_short }}</p>{% endif %}
-      {% if profile %}
-        <span class="badge badge-{{ profile.experience_level }}">{{ profile.experience_level|capitalize }}</span>
-      {% endif %}
-    </div>
+<section class="profile-heading">
+  <span class="avatar avatar-large"><img src="{{ mentor.headshot_url }}" alt=""></span>
+  <div>
+    <p class="eyebrow">{{ 'Professional profile' if mentor.mentor_type == 'industry' else 'Faculty mentor profile' }}</p>
+    <h1>{{ mentor.name }}</h1>
+    <p class="secondary">{{ mentor.title }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
+    {% if mentor.bio_short %}<p>{{ mentor.bio_short }}</p>{% endif %}
   </div>
-</div>
+</section>
 
-<div class="card">
-  <h2>Impact</h2>
-  <p>{{ total_mentored }} student(s) mentored · {{ meetings_held }} meeting(s) held
-     · {{ current_students|length }} current · {{ past_students|length }} past</p>
-</div>
+<section class="stats-row" aria-label="Mentor impact">
+  <div class="stat"><strong>{{ total_mentored }}</strong><span>Students mentored</span></div>
+  <div class="stat"><strong>{{ meetings_held }}</strong><span>Meetings held</span></div>
+  <div class="stat"><strong>{{ testimonials|length }}</strong><span>Testimonials</span></div>
+</section>
 
-{% if profile and profile.skill_scores %}
-<div class="card">
-  <h2>Technical background</h2>
-  <div class="chips">
-    {% for sid, conf in profile.skill_scores.items() %}
-      <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid }}</span>
-    {% endfor %}
-  </div>
-</div>
+{% if current and current.id == mentor.id and profile %}
+  <section class="card">
+    <h2 class="mt0">Mentoring preferences</h2>
+    {% if request.query_params.get('settings_saved') == '1' %}<div class="banner info" role="status">Your preference is saved.</div>{% endif %}
+    <p class="secondary">Your default capacity is one student. Turn this on to accept one more.</p>
+    <form method="post" action="/mentor/profile/preferences">
+      <label class="check-option"><input type="checkbox" name="accept_more_requests" value="1" {% if profile.max_students > 1 %}checked{% endif %}><span>I’m open to mentoring one additional student</span></label>
+      <button class="btn alt sm" type="submit">Save preference</button>
+    </form>
+  </section>
 {% endif %}
 
-<div class="card">
-  <h2>Students</h2>
-  {% if current_students %}<p><strong>Current:</strong> {{ current_students|map(attribute='name')|join(", ") }}</p>{% endif %}
-  {% if past_students %}<p><strong>Past:</strong> {{ past_students|map(attribute='name')|join(", ") }}</p>{% endif %}
-  {% if not current_students and not past_students %}<p class="muted">No students yet.</p>{% endif %}
-</div>
+<section class="card">
+  <h2 class="mt0">Technical background</h2>
+  {% if profile and profile.skill_scores %}
+    <div class="chips">
+      {% for sid, conf in profile.skill_scores.items() %}
+        <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid|replace('_', ' ')|title }}
+          <span class="conf">{{ (conf*100)|round|int }}%</span>
+        </span>
+      {% endfor %}
+    </div>
+  {% else %}<p class="secondary">No skills added yet.</p>{% endif %}
+</section>
 
-<div class="card">
-  <h2>Testimonials</h2>
-  {% if not testimonials %}<p class="muted">No testimonials yet.</p>{% endif %}
+<section class="card">
+  <h2 class="mt0">Students</h2>
+  {% if not current_students and not past_students %}<p class="secondary">No students yet.</p>{% endif %}
+  <div class="student-list">
+    {% for student in current_students %}
+      <div class="person-row">
+        <span class="avatar"><img src="{{ student.headshot_url }}" alt=""></span>
+        <span class="grow">{{ student.name }}</span><span class="status-chip status-confirmed">Current</span>
+      </div>
+    {% endfor %}
+    {% for student in past_students %}
+      <div class="person-row">
+        <span class="avatar"><img src="{{ student.headshot_url }}" alt=""></span>
+        <span class="grow">{{ student.name }}</span><span class="status-chip status-completed">Past</span>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <h2 class="mt0">Testimonials</h2>
+  {% if not testimonials %}<p class="secondary">No testimonials yet.</p>{% endif %}
   {% for item in testimonials %}
-    <blockquote style="border-left:3px solid var(--green);padding-left:1rem;margin:.75rem 0;">
-      "{{ item.t.text }}"
-      <footer class="muted sample-note">— {{ item.author.name if item.author else "A student" }} (sample data)</footer>
+    <blockquote class="quote-card">
+      <p>“{{ item.t.text }}”</p>
+      <footer>— {{ item.author.name if item.author else "A student" }}</footer>
     </blockquote>
   {% endfor %}
-</div>
+</section>
 {% endblock %}

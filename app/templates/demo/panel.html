@@ -1,45 +1,58 @@
 {% extends "base.html" %}
-{% block title %}Demo Panel — Sprout{% endblock %}
+{% block title %}Developer view — Sprout{% endblock %}
+{% block main_class %}wide{% endblock %}
 {% block content %}
-<h1>Demo Operator Panel</h1>
-<p class="muted">Switch the active user, reset the database, or toggle the LLM mode.</p>
+<div class="banner info demo-banner"><strong>Developer view</strong> · Switch into a specific student or professional account.</div>
+<h1>Preview an account</h1>
 
-<div class="card">
-  <h2>Role switcher</h2>
-  <form method="post" action="/demo/role" class="form-actions" style="align-items:flex-end;">
-    <div class="field" style="flex:1;margin:0;">
-      <label for="user_id">Act as</label>
-      <select name="user_id" id="user_id">
-        <optgroup label="Mentors">
-          {% for u in users if u.role == 'mentor' %}
-            <option value="{{ u.id }}" {% if current and current.id==u.id %}selected{% endif %}>{{ u.name }} — {{ u.title }}</option>
-          {% endfor %}
-        </optgroup>
-        <optgroup label="Students">
-          {% for u in users if u.role == 'student' %}
-            <option value="{{ u.id }}" {% if current and current.id==u.id %}selected{% endif %}>{{ u.name }} — {{ u.major }}</option>
-          {% endfor %}
-        </optgroup>
+<section class="card">
+  <h2 class="mt0">Choose a view</h2>
+  <form method="post" action="/demo/role">
+    <div class="field">
+      <label class="lbl" for="demo-role">View as</label>
+      <select id="demo-role" data-demo-role-select>
+        <option value="student" {% if current and current.role == 'student' %}selected{% endif %}>Student</option>
+        <option value="mentor" {% if current and current.role == 'mentor' %}selected{% endif %}>Professional</option>
       </select>
     </div>
-    <button class="btn btn-primary">Switch</button>
+    <div class="field">
+      <label class="lbl" for="demo-user">Choose an account</label>
+      <select id="demo-user" name="user_id">
+        {% for user in users %}
+          <option value="{{ user.id }}" data-role="{{ user.role }}" {% if current and current.id == user.id %}selected{% endif %}>
+            {{ user.name }} — {{ 'Professional' if user.role == 'mentor' else 'Student' }}{% if user.major %} · {{ user.major }}{% elif user.title %} · {{ user.title }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit">Open this account</button>
   </form>
-</div>
+</section>
 
-<div class="card">
-  <h2>Database</h2>
-  <form method="post" action="/demo/reset">
-    <button class="btn btn-secondary">Reset to seed data</button>
+<section class="card">
+  <h2 class="mt0">Language model mode</h2>
+  <p class="secondary">Current mode: <strong>{{ llm_mode|capitalize }}</strong></p>
+  <form method="post" action="/demo/llm_mode">
+    <div class="field">
+      <label class="lbl" for="llm-mode">Choose a mode</label>
+      <select id="llm-mode" name="mode">
+        {% for mode in ["off", "cached", "live"] %}<option value="{{ mode }}" {% if llm_mode == mode %}selected{% endif %}>{{ mode|capitalize }}{% if mode == "off" %} (fallback){% endif %}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn alt" type="submit">Save mode</button>
   </form>
-</div>
+</section>
 
-<div class="card">
-  <h2>LLM mode</h2>
-  <p class="muted">Current: <strong>{{ llm_mode }}</strong></p>
-  <form method="post" action="/demo/llm_mode" class="form-actions">
-    <button class="btn btn-secondary" name="mode" value="off">Off (fallback)</button>
-    <button class="btn btn-secondary" name="mode" value="cached">Cached</button>
-    <button class="btn btn-secondary" name="mode" value="live">Live</button>
-  </form>
-</div>
+<section class="card reset-card">
+  <h2 class="mt0">Reset demo data</h2>
+  <details class="reset-confirm">
+    <summary>Reset database</summary>
+    <div class="reset-confirm-content">
+      <p>This erases all demo data. Reset?</p>
+      <form method="post" action="/demo/reset">
+        <button class="btn danger" type="submit">Reset database</button>
+      </form>
+    </div>
+  </details>
+</section>
 {% endblock %}

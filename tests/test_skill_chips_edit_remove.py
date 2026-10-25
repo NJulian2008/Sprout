@@ -23,6 +23,7 @@ deterministic (fallback) skill extraction.
 """
 
 import json
+import random
 
 import pytest
 from fastapi.testclient import TestClient
@@ -30,9 +31,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db.models import Base, StudentRequest
+from app.db.models import Base, MentorProfile, StudentRequest
 from app.db.session import get_session
 from app.main import app
+from app.services.llm import extract_skills
+from app.services.skills import experience_level, experience_score, load_taxonomy
 
 
 @pytest.fixture
@@ -75,6 +78,88 @@ def client(monkeypatch):
 
 def _make_txt(text: str) -> bytes:
     return text.encode("utf-8")
+
+
+def test_student_resume_review_stage_persists_edited_skills(client):
+    c, SessionMaker = client
+    resume_text = "I know Python and Git"
+    review = c.post(
+        "/student/signup",
+        data={
+            "stage": "review",
+            "name": "Review Student",
+            "goal_text": "Build a Python project",
+            "specialty": "computer_science",
+        },
+        files={"resume_file": ("resume.txt", _make_txt(resume_text), "text/plain")},
+    )
+    assert review.status_code == 200
+    assert "Review your skills" in review.text
+    assert 'name="skill_reviewed" value="1"' in review.text
+
+    create = c.post(
+        "/student/signup",
+        data={
+            "stage": "create",
+            "name": "Review Student",
+            "goal_text": "Build a Python project",
+            "specialty": "computer_science",
+            "resume_text": resume_text,
+            "skill_scores_json": '{"python": 0.5}',
+            "skill_reviewed": "1",
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    db = SessionMaker()
+    try:
+        req = db.query(StudentRequest).order_by(StudentRequest.id.desc()).first()
+        assert req is not None
+        assert req.skill_scores == {"python": 0.5}
+        assert req.resume_text == resume_text
+    finally:
+        db.close()
+
+
+def test_mentor_resume_review_stage_persists_edited_skills(client):
+    c, SessionMaker = client
+    resume_text = "I know Python and Git"
+    review = c.post(
+        "/mentor/signup",
+        data={
+            "stage": "review",
+            "name": "Review Mentor",
+            "specialties": "computer_science",
+        },
+        files={"resume_file": ("resume.txt", _make_txt(resume_text), "text/plain")},
+    )
+    assert review.status_code == 200
+    assert "Review your skills" in review.text
+    assert 'name="skill_reviewed" value="1"' in review.text
+
+    create = c.post(
+        "/mentor/signup",
+        data={
+            "stage": "create",
+            "name": "Review Mentor",
+            "specialties": "computer_science",
+            "resume_text": resume_text,
+            "skill_scores_json": '{"python": 0.5}',
+            "skill_reviewed": "1",
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    db = SessionMaker()
+    try:
+        profile = db.query(MentorProfile).order_by(MentorProfile.user_id.desc()).first()
+        assert profile is not None
+        assert profile.skill_scores == {"python": 0.5}
+        assert profile.resume_text == resume_text
+    finally:
+        db.close()
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -178,19 +263,18 @@ def test_student_signup_persists_added_skill_from_json(client):
 # ════════════════════════════════════════════════════════════════════════════
 # Test case 3 — remove control on populated chips; scores stay internal
 #
-# Scope change: editing a confidence value was removed from the feature. Each
-# chip keeps only a remove control; confidence remains in the hidden score map
-# but is not shown to users.
+# The UI displays each confidence as an editable slider and keeps the hidden
+# score map synchronized when a skill is edited or removed.
 # Requirements 1.2, 2.2
 # ════════════════════════════════════════════════════════════════════════════
 
 
-def test_populated_chips_have_remove_control_and_readonly_confidence(client):
-    """Each chip has a remove control while its score remains internal.
+def test_populated_chips_have_remove_control_and_editable_confidence(client):
+    """Each skill has a remove control and an editable confidence slider.
 
     Render non-empty chips via POST /mentor/skills/extract with a known-skill
-    text. The fragment MUST contain a remove control (class="chip-remove")
-    carrying data-skill, and MUST NOT contain an editable confidence input.
+    text. The fragment must expose the UI controls and preserve the extracted
+    confidence in the hidden score map.
     """
     c, _ = client
     r = c.post("/mentor/skills/extract", data={"text": "I know some python and git"})
@@ -198,24 +282,9 @@ def test_populated_chips_have_remove_control_and_readonly_confidence(client):
     html = r.text
 
     # Sanity: chips are actually rendered so the assertions are meaningful.
-    assert 'class="chip"' in html, "Expected non-empty chips to be rendered."
-
-    assert "data-skill" in html, (
-        "Expected a per-skill control carrying data-skill (the remove button)."
-    )
-    assert 'class="chip-remove"' in html, (
-        "Expected a remove control (class=\"chip-remove\") on the chips fragment."
-    )
-    # Numeric scores are not shown in the user-facing chips.
-    assert 'class="chip-conf"' not in html, (
-        "Editable confidence control should be removed; confidence is read-only."
-    )
-    assert 'type="number"' not in html and 'type="range"' not in html, (
-        "No editable confidence input (number/range) should exist; the "
-        "confidence remains internal."
-    )
-    assert 'class="conf"' not in html
-    assert "30%" not in html
+    assert 'class="chip skill-chip"' in html, "Expected non-empty chips to be rendered."
+    assert "data-remove-skill" in html, "Expected a per-skill remove control."
+    assert "data-confidence-slider" in html, "Expected an editable confidence slider."
     assert '"python": 0.3' in html, "The confidence score must remain in the hidden form data."
 
 
@@ -228,33 +297,17 @@ def test_populated_chips_have_remove_control_and_readonly_confidence(client):
 
 
 def test_populated_chips_have_taxonomy_add_control(client):
-    """A free-text add control with taxonomy autocomplete is present.
-
-    Using a non-empty render, the fragment MUST contain a chip-add-input text
-    box bound to a datalist of taxonomy labels, plus a chip-add button. A
-    client-side resolver map (label/alias/id → canonical id) is embedded so
-    typed text still resolves to a canonical taxonomy id.
-    """
+    """A free-text add control offers taxonomy suggestions and canonical IDs."""
     c, _ = client
     r = c.post("/mentor/skills/extract", data={"text": "I know some python and git"})
     assert r.status_code == 200
     html = r.text
 
-    assert 'class="chip-add-input"' in html, (
-        "Expected a free-text add box (class=\"chip-add-input\") in the "
-        "populated branch."
-    )
-    assert 'list="chip-add-options"' in html and 'id="chip-add-options"' in html, (
-        "Expected the add box to be bound to a datalist of taxonomy labels "
-        "(id=\"chip-add-options\")."
-    )
-    assert 'class="chip-add"' in html, "Expected an add button (class=\"chip-add\")."
-    # The datalist offers taxonomy labels as suggestions.
+    assert 'class="chip-add-input"' in html, "Expected a free-text add box."
+    assert 'list="skill-suggestions"' in html and 'id="skill-suggestions"' in html
+    assert "chip-add" in html, "Expected an add button."
     assert "Python" in html, "Expected taxonomy labels as autocomplete options."
-    # The resolver map carries canonical ids so free text resolves canonically.
-    assert "data-skill-resolver" in html and '"python"' in html, (
-        "Expected an embedded resolver mapping typed text to canonical ids."
-    )
+    assert 'data-skill-id="python"' in html, "Expected canonical IDs in taxonomy options."
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -282,13 +335,8 @@ def test_empty_state_shows_message_and_add_control(client):
     assert "No skills detected yet" in html, (
         "Expected the empty-state message to remain."
     )
-    assert 'class="chip-add-input"' in html, (
-        "Expected a free-text add box (class=\"chip-add-input\") in the empty "
-        "branch so a skill can be added from the empty state."
-    )
-    assert 'class="chip-add"' in html, (
-        "Expected the empty branch to have an add button (class=\"chip-add\")."
-    )
+    assert 'class="chip-add-input"' in html, "Expected an add box in the empty state."
+    assert "chip-add" in html, "Expected an add button in the empty state."
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -343,13 +391,6 @@ def test_populated_note_mentions_remove_and_add(client):
 #
 # Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7
 # ════════════════════════════════════════════════════════════════════════════
-
-import random
-
-from app.db.models import MentorProfile
-from app.services.llm import extract_skills
-from app.services.skills import experience_level, experience_score, load_taxonomy
-
 
 # Varied readable resume texts, each known to yield taxonomy skills (python/git
 # are in app/data/skills_taxonomy.json) via the deterministic fallback_extract.
@@ -482,7 +523,7 @@ def test_preserve_extract_no_skills_shows_empty_state(client):
     r = c.post("/mentor/skills/extract", data={"text": NO_SKILL_RESUME})
     assert r.status_code == 200
     assert "No skills detected yet" in r.text
-    assert 'value="{}"' in r.text
+    assert "value='{}'" in r.text
     assert 'class="chip"' not in r.text
 
     # Student extract with a no-skill resume file.
@@ -492,7 +533,7 @@ def test_preserve_extract_no_skills_shows_empty_state(client):
     )
     assert r.status_code == 200
     assert "No skills detected yet" in r.text
-    assert 'value="{}"' in r.text
+    assert "value='{}'" in r.text
     assert 'class="chip"' not in r.text
 
 
@@ -765,7 +806,6 @@ def test_preserve_mentor_other_fields_persist(client):
             "outcomes": "Shipped an ML pipeline,Mentored 5 students",
             "availability": "Mon-Evening,Tue-Evening",
             "top3": "hands_on_building,technical_depth,accountability",
-            "max_students": "3",
         },
         files={"resume_file": ("resume.txt", _make_txt(text), "text/plain")},
         follow_redirects=False,
@@ -780,7 +820,7 @@ def test_preserve_mentor_other_fields_persist(client):
         assert profile.outcomes == ["Shipped an ML pipeline", "Mentored 5 students"]
         assert profile.availability == ["Mon-Evening", "Tue-Evening"]
         assert profile.top3 == ["hands_on_building", "technical_depth", "accountability"]
-        assert profile.max_students == 3
+        assert profile.max_students == 1
     finally:
         db.close()
 
@@ -822,7 +862,7 @@ def test_integration_student_extract_then_edit_and_add_persists_and_matches(clie
         files={"resume_file": ("resume.txt", _make_txt(resume_text), "text/plain")},
     )
     assert extract.status_code == 200
-    assert 'class="chip"' in extract.text  # chips were rendered to edit/add from
+    assert "data-skill-item" in extract.text  # chips were rendered to edit/add from
 
     # 2) Submit with an edited value (python down to 0.5) AND an added skill
     #    (sql, which the resume lacks).

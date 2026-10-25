@@ -59,20 +59,36 @@ def _parse_multi(form_value: str | None) -> list[str]:
 
 
 def _validated_scores(posted: dict) -> dict[str, float]:
-    """Coerce posted skill scores and run them through ``SkillScores``.
+    """Coerce posted skill scores and run them through ``SkillScores`` (from main).
 
-    Non-numeric values are skipped (not raised); unknown ids are dropped and
-    valid values clamped to [0.0, 1.0] and rounded to 2 decimals by SkillScores.
+    Non-numeric values are skipped (not raised); unknown taxonomy ids are
+    dropped and valid values clamped to [0.0, 1.0] and rounded to 2 decimals.
     """
     from app.schemas.ai import SkillScores
 
     numeric: dict[str, float] = {}
     for k, v in posted.items():
         try:
-            numeric[k] = float(v)
+            numeric[str(k)] = float(v)
         except (TypeError, ValueError):
-            continue  # malformed entry ignored (2.3)
+            continue
     return SkillScores(skills=numeric).skills
+
+
+def _parse_skill_scores(raw: str | None) -> dict[str, float]:
+    """Parse the optional skill-editor JSON payload, then validate it.
+
+    Keeps the UI's forgiving JSON handling (old submissions never raise) and
+    delegates to ``_validated_scores`` so unknown taxonomy ids are dropped and
+    values clamped/rounded.
+    """
+    try:
+        values = json.loads(raw or "{}")
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(values, dict):
+        return {}
+    return _validated_scores(values)
 
 
 def _resume_text_from_upload(upload: UploadFile) -> str:
@@ -129,10 +145,13 @@ def _mentor_to_candidate(profile: MentorProfile, active_students: int = 0) -> Me
     )
 
 
-def _active_student_count(db: Session, mentor_id: int) -> int:
+def _current_student_count(db: Session, mentor_id: int) -> int:
     return (
         db.query(Mentorship)
-        .filter(Mentorship.mentor_id == mentor_id, Mentorship.status == "active")
+        .filter(
+            Mentorship.mentor_id == mentor_id,
+            Mentorship.status.in_(("intro_scheduled", "intro_held", "active")),
+        )
         .count()
     )
 
@@ -174,35 +193,80 @@ def student_signup_submit(
     cadence: str = Form("weekly"),
     availability: str = Form(""),
     top3: str = Form(""),
+    stage: str = Form("create"),
+    resume_file: UploadFile | None = File(None),
+    resume_text: str = Form(""),
     skill_scores_json: str = Form("{}"),
+    skill_reviewed: bool = Form(False),
     skill_scores_reviewed: bool = Form(False),
-    resume_file: UploadFile = File(...),
 ):
-    resume_text = _resume_text_from_upload(resume_file)
-    if not resume_text.strip():
-        raise HTTPException(status_code=422, detail="Resume text is required.")
     if not goal_text.strip():
         raise HTTPException(status_code=422, detail="Goal is required.")
     if specialty not in CS_ENGINEERING_SPECIALTIES:
         raise HTTPException(status_code=422, detail="Choose a valid CS or engineering specialty.")
+
+    if stage == "review":
+        try:
+            if resume_file is None or not resume_file.filename:
+                raise HTTPException(status_code=422, detail="Upload your resume to continue.")
+            resume_text = _resume_text_from_upload(resume_file)
+        except HTTPException as exc:
+            response = render(
+                "student/signup.html",
+                {
+                    "request": request,
+                    "current": current_user(request, db),
+                    "taxonomy": load_taxonomy(),
+                    "specialties": CS_ENGINEERING_SPECIALTIES,
+                    "review_mode": False,
+                    "step": 1,
+                    "error": exc.detail,
+                    "form_data": {
+                        "name": name,
+                        "goal_text": goal_text,
+                        "specialty": specialty,
+                        "availability": availability,
+                        "top3": top3,
+                    },
+                },
+            )
+            response.status_code = 422
+            return response
+
+        return render(
+            "student/signup.html",
+            {
+                "request": request,
+                "current": current_user(request, db),
+                "taxonomy": load_taxonomy(),
+                "specialties": CS_ENGINEERING_SPECIALTIES,
+                "review_mode": True,
+                "form_data": {
+                    "name": name,
+                    "goal_text": goal_text,
+                    "specialty": specialty,
+                    "availability": availability,
+                    "top3": top3,
+                    "resume_text": resume_text,
+                },
+                "skill_scores": extract_skills(resume_text, db),
+                "skill_reviewed": True,
+            },
+        )
+
+    if not resume_text.strip() and resume_file is not None and resume_file.filename:
+        resume_text = _resume_text_from_upload(resume_file)
+    if not resume_text.strip():
+        raise HTTPException(status_code=422, detail="Resume text is required.")
 
     # Build the student user
     user = User(role="student", name=name, headshot_url="/static/avatars/avatar_9.svg")
     db.add(user)
     db.flush()
 
-    try:
-        posted = json.loads(skill_scores_json) if skill_scores_json else {}
-    except json.JSONDecodeError:
-        posted = {}
-    if not isinstance(posted, dict):
-        posted = {}
-    if skill_scores_reviewed or posted:
-        scores = _validated_scores(posted)
-    elif resume_text.strip():
+    scores = _parse_skill_scores(skill_scores_json)
+    if not (skill_reviewed or skill_scores_reviewed) and not scores:
         scores = extract_skills(resume_text, db)
-    else:
-        scores = {}
     goal_skills = extract_skills(goal_text, db, goal_context=True)
     goal_type = _infer_goal_type(goal_text)
 
@@ -260,7 +324,7 @@ def _run_matching(db: Session, req: StudentRequest) -> None:
         specialty=req.specialty,
     )
     profiles = db.query(MentorProfile).all()
-    candidates = [_mentor_to_candidate(p, _active_student_count(db, p.user_id)) for p in profiles]
+    candidates = [_mentor_to_candidate(p, _current_student_count(db, p.user_id)) for p in profiles]
     ranked = rank(student, candidates)
     top5 = ranked[:5]
 
@@ -362,6 +426,12 @@ def student_matches(request: Request, db: Session = Depends(get_session)):
                     "mentor": mentor,
                     "profile": profile,
                     "overlap": overlap,
+                    "requested": db.query(Mentorship)
+                    .filter(
+                        Mentorship.request_id == req.id,
+                        Mentorship.mentor_id == m.mentor_id,
+                    )
+                    .first() is not None,
                 }
             )
 
@@ -373,6 +443,18 @@ def student_matches(request: Request, db: Session = Depends(get_session)):
             "req": req,
             "matches": matches_ctx,
             "taxonomy": load_taxonomy(),
+            "requested_mentorship": (
+                db.query(Mentorship)
+                .filter(
+                    Mentorship.request_id == req.id,
+                    Mentorship.student_id == req.student_id,
+                    Mentorship.status != "ended",
+                )
+                .order_by(Mentorship.id.desc())
+                .first()
+                if req
+                else None
+            ),
         },
     )
 
@@ -398,7 +480,7 @@ def student_choose_mentor(
     )
     db.add(ms)
     db.commit()
-    return RedirectResponse(url="/student/dashboard", status_code=303)
+    return RedirectResponse(url=f"/mentorship/{ms.id}", status_code=303)
 
 
 @router.post("/student/skills/extract")
@@ -412,14 +494,12 @@ def student_skills_extract(
     except HTTPException:
         resume_text = ""
     scores = extract_skills(resume_text, db) if resume_text.strip() else {}
-    exp_s = experience_score(scores)
     return render(
         "partials/skill_chips.html",
         {
             "request": request,
             "skill_scores": scores,
-            "experience_level": experience_level(exp_s),
-            "experience_score": round(exp_s, 2),
+            "skill_reviewed": True,
             "taxonomy": load_taxonomy(),
             "field_name": "skill_scores_json",
             "scores_reviewed": True,
@@ -430,27 +510,83 @@ def student_skills_extract(
 @router.get("/student/dashboard")
 def student_dashboard(request: Request, db: Session = Depends(get_session)):
     user = current_user(request, db)
-    mentorships = []
-    if user:
-        mentorships = (
-            db.query(Mentorship)
-            .filter(Mentorship.student_id == user.id)
-            .order_by(Mentorship.id.desc())
-            .all()
+    if user is None or user.role != "student":
+        return RedirectResponse(url="/", status_code=303)
+    mentorship = (
+        db.query(Mentorship)
+        .filter(
+            Mentorship.student_id == user.id,
+            Mentorship.status.in_(("requested", "intro_scheduled", "intro_held", "active", "completed")),
         )
-    ctx_items = []
-    for ms in mentorships:
-        mentor = db.get(User, ms.mentor_id)
-        deliverables = db.query(Deliverable).filter(Deliverable.mentorship_id == ms.id).all()
-        ctx_items.append({"ms": ms, "mentor": mentor, "deliverables": deliverables})
+        .order_by(Mentorship.id.desc())
+        .first()
+    )
+    if mentorship:
+        return RedirectResponse(url=f"/mentorship/{mentorship.id}", status_code=303)
+    student_request = (
+        db.query(StudentRequest)
+        .filter(StudentRequest.student_id == user.id)
+        .order_by(StudentRequest.id.desc())
+        .first()
+    )
+    if student_request:
+        request.session["request_id"] = student_request.id
+        return RedirectResponse(url="/student/matches", status_code=303)
     return render(
         "student/dashboard.html",
         {
             "request": request,
             "current": user,
-            "items": ctx_items,
         },
     )
+
+
+@router.get("/student/profile")
+def student_profile_page(request: Request, db: Session = Depends(get_session)):
+    user = current_user(request, db)
+    if user is None or user.role != "student":
+        return RedirectResponse(url="/", status_code=303)
+    return render(
+        "student/profile.html",
+        {
+            "request": request,
+            "current": user,
+            "saved": request.query_params.get("saved") == "1",
+            "error": None,
+        },
+    )
+
+
+@router.post("/student/profile")
+def student_profile_save(
+    request: Request,
+    db: Session = Depends(get_session),
+    name: str = Form(...),
+    major: str = Form(""),
+    year: str = Form(""),
+    bio_short: str = Form(""),
+):
+    user = current_user(request, db)
+    if user is None or user.role != "student":
+        return RedirectResponse(url="/", status_code=303)
+    if not name.strip():
+        response = render(
+            "student/profile.html",
+            {
+                "request": request,
+                "current": user,
+                "saved": False,
+                "error": "Enter your name to save your profile.",
+            },
+        )
+        response.status_code = 422
+        return response
+    user.name = name.strip()
+    user.major = major.strip() or None
+    user.year = year.strip() or None
+    user.bio_short = bio_short.strip()
+    db.commit()
+    return RedirectResponse(url="/student/profile?saved=1", status_code=303)
 
 
 # ── Mentor signup + dashboard + profile ─────────────────────────────────────
@@ -478,29 +614,18 @@ def mentor_signup_submit(
     title: str = Form(""),
     org: str = Form(""),
     mentor_type: str = Form("industry"),
+    resume_file: UploadFile | None = File(None),
     resume_text: str = Form(""),
     skill_scores_json: str = Form("{}"),
+    skill_reviewed: bool = Form(False),
+    skill_scores_reviewed: bool = Form(False),
     additional_experiences: str = Form(""),
     outcomes: str = Form(""),
     availability: str = Form(""),
     top3: str = Form(""),
-    max_students: int = Form(2),
     specialties: str = Form(""),
-    skill_scores_reviewed: bool = Form(False),
-    resume_file: UploadFile = File(...),
+    stage: str = Form("create"),
 ):
-    resume_text = _resume_text_from_upload(resume_file)
-    if not resume_text.strip():
-        raise HTTPException(status_code=422, detail="Resume text is required.")
-    user = User(
-        role="mentor",
-        name=name,
-        bio_short=bio_short,
-        title=title,
-        org=org,
-        mentor_type=mentor_type,
-        headshot_url="/static/avatars/avatar_2.svg",
-    )
     chosen_specialties = _parse_multi(specialties)
     if not chosen_specialties or any(
         specialty not in CS_ENGINEERING_SPECIALTIES for specialty in chosen_specialties
@@ -508,21 +633,86 @@ def mentor_signup_submit(
         raise HTTPException(
             status_code=422, detail="Choose at least one valid CS or engineering specialty."
         )
+
+    if stage == "review":
+        try:
+            if resume_file is None or not resume_file.filename:
+                raise HTTPException(status_code=422, detail="Upload your resume to continue.")
+            resume_text = _resume_text_from_upload(resume_file)
+        except HTTPException as exc:
+            response = render(
+                "mentor/signup.html",
+                {
+                    "request": request,
+                    "current": current_user(request, db),
+                    "taxonomy": load_taxonomy(),
+                    "specialties": CS_ENGINEERING_SPECIALTIES,
+                    "review_mode": False,
+                    "step": 2,
+                    "error": exc.detail,
+                    "form_data": {
+                        "name": name,
+                        "bio_short": bio_short,
+                        "title": title,
+                        "org": org,
+                        "mentor_type": mentor_type,
+                        "specialties": specialties,
+                        "outcomes": outcomes,
+                        "availability": availability,
+                        "top3": top3,
+                        "additional_experiences": additional_experiences,
+                    },
+                },
+            )
+            response.status_code = 422
+            return response
+
+        return render(
+            "mentor/signup.html",
+            {
+                "request": request,
+                "current": current_user(request, db),
+                "taxonomy": load_taxonomy(),
+                "specialties": CS_ENGINEERING_SPECIALTIES,
+                "review_mode": True,
+                "form_data": {
+                    "name": name,
+                    "bio_short": bio_short,
+                    "title": title,
+                    "org": org,
+                    "mentor_type": mentor_type,
+                    "specialties": specialties,
+                    "outcomes": outcomes,
+                    "availability": availability,
+                    "top3": top3,
+                    "resume_text": resume_text,
+                    "additional_experiences": additional_experiences,
+                },
+                "skill_scores": extract_skills(resume_text, db),
+                "skill_reviewed": True,
+            },
+        )
+
+    if not resume_text.strip() and resume_file is not None and resume_file.filename:
+        resume_text = _resume_text_from_upload(resume_file)
+    if not resume_text.strip():
+        raise HTTPException(status_code=422, detail="Resume text is required.")
+
+    user = User(
+        role="mentor",
+        name=name.strip(),
+        bio_short=bio_short,
+        title=title,
+        org=org,
+        mentor_type=mentor_type,
+        headshot_url="/static/avatars/avatar_2.svg",
+    )
     db.add(user)
     db.flush()
 
-    try:
-        posted = json.loads(skill_scores_json) if skill_scores_json else {}
-    except json.JSONDecodeError:
-        posted = {}
-    if not isinstance(posted, dict):
-        posted = {}
-    if skill_scores_reviewed or posted:
-        scores = _validated_scores(posted)
-    elif resume_text.strip():
+    scores = _parse_skill_scores(skill_scores_json)
+    if not (skill_reviewed or skill_scores_reviewed) and not scores:
         scores = extract_skills(resume_text, db)
-    else:
-        scores = {}
 
     exp_s = experience_score(scores)
     profile = MentorProfile(
@@ -536,7 +726,7 @@ def mentor_signup_submit(
         outcomes=_parse_multi(outcomes),
         availability=_parse_multi(availability),
         top3=_parse_multi(top3),
-        max_students=max_students,
+        max_students=1,
     )
     db.add(profile)
     db.commit()
@@ -551,14 +741,12 @@ def mentor_skills_extract(
     text: str = Form(""),
 ):
     scores = extract_skills(text, db) if text.strip() else {}
-    exp_s = experience_score(scores)
     return render(
         "partials/skill_chips.html",
         {
             "request": request,
             "skill_scores": scores,
-            "experience_level": experience_level(exp_s),
-            "experience_score": round(exp_s, 2),
+            "skill_reviewed": True,
             "taxonomy": load_taxonomy(),
             "field_name": "skill_scores_json",
             "scores_reviewed": True,
@@ -569,7 +757,7 @@ def mentor_skills_extract(
 @router.get("/mentor/dashboard")
 def mentor_dashboard(request: Request, db: Session = Depends(get_session)):
     user = current_user(request, db)
-    requests_new, awaiting, active = [], [], []
+    requests_new, students = [], []
     if user:
         all_ms = (
             db.query(Mentorship)
@@ -598,22 +786,25 @@ def mentor_dashboard(request: Request, db: Session = Depends(get_session)):
             }
             if ms.status == "requested":
                 requests_new.append(item)
-            elif ms.status == "intro_scheduled" or ms.status == "intro_held":
-                awaiting.append(item)
-            elif ms.status in ("active", "completed"):
+            elif ms.status in ("intro_scheduled", "intro_held", "active", "completed"):
+                item["next_meeting"] = (
+                    db.query(Meeting)
+                    .filter(Meeting.mentorship_id == ms.id, Meeting.status == "scheduled")
+                    .order_by(Meeting.number)
+                    .first()
+                )
                 deliverables = (
                     db.query(Deliverable).filter(Deliverable.mentorship_id == ms.id).all()
                 )
                 item["deliverables"] = deliverables
-                active.append(item)
+                students.append(item)
     return render(
         "mentor/dashboard.html",
         {
             "request": request,
             "current": user,
             "requests_new": requests_new,
-            "awaiting": awaiting,
-            "active": active,
+            "students": students,
         },
     )
 
@@ -657,6 +848,22 @@ def mentor_profile(mentor_id: int, request: Request, db: Session = Depends(get_s
     )
 
 
+@router.post("/mentor/profile/preferences")
+def mentor_profile_preferences(
+    request: Request,
+    db: Session = Depends(get_session),
+    accept_more_requests: bool = Form(False),
+):
+    user = current_user(request, db)
+    if user is None or user.role != "mentor":
+        return RedirectResponse(url="/", status_code=303)
+    profile = db.get(MentorProfile, user.id)
+    if profile:
+        profile.max_students = 2 if accept_more_requests else 1
+        db.commit()
+    return RedirectResponse(url=f"/mentors/{user.id}?settings_saved=1", status_code=303)
+
+
 # ── Availability ───────────────────────────────────────────────────────────────
 
 
@@ -677,7 +884,12 @@ def availability_page(request: Request, db: Session = Depends(get_session)):
         current_avail = list(req.availability) if req else []
     return render(
         "availability.html",
-        {"request": request, "current": user, "current_avail": current_avail},
+        {
+            "request": request,
+            "current": user,
+            "current_avail": current_avail,
+            "saved": request.query_params.get("saved") == "1",
+        },
     )
 
 
@@ -703,10 +915,104 @@ def availability_save(
         if req:
             req.availability = avail
     db.commit()
-    return RedirectResponse(url="/availability", status_code=303)
+    return RedirectResponse(url="/availability?saved=1", status_code=303)
+
+
+# ── Messages ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/messages")
+def messages_page(request: Request, db: Session = Depends(get_session)):
+    user = current_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/", status_code=303)
+    relationship_column = (
+        Mentorship.mentor_id if user.role == "mentor" else Mentorship.student_id
+    )
+    mentorship = (
+        db.query(Mentorship)
+        .filter(
+            relationship_column == user.id,
+            Mentorship.status.in_(
+                ("requested", "intro_scheduled", "intro_held", "active", "completed")
+            ),
+        )
+        .order_by(Mentorship.id.desc())
+        .first()
+    )
+    partner = None
+    messages = []
+    if mentorship:
+        partner_id = mentorship.student_id if user.role == "mentor" else mentorship.mentor_id
+        partner = db.get(User, partner_id)
+        rows = (
+            db.query(Message)
+            .filter(Message.mentorship_id == mentorship.id)
+            .order_by(Message.created_at, Message.id)
+            .all()
+        )
+        messages = [{"msg": m, "sender": db.get(User, m.sender_id)} for m in rows]
+    return render(
+        "messages.html",
+        {
+            "request": request,
+            "current": user,
+            "mentorship": mentorship,
+            "partner": partner,
+            "messages": messages,
+        },
+    )
+
+
+@router.post("/messages")
+def send_message(
+    request: Request,
+    db: Session = Depends(get_session),
+    text: str = Form(...),
+):
+    """Append a chat message to the current mentorship thread.
+
+    Both participants may post. A non-participant never matches a mentorship
+    (so nothing is written), and empty/whitespace text is ignored. We then
+    redirect back so the thread re-renders on reload.
+    """
+    user = current_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/", status_code=303)
+    relationship_column = (
+        Mentorship.mentor_id if user.role == "mentor" else Mentorship.student_id
+    )
+    mentorship = (
+        db.query(Mentorship)
+        .filter(
+            relationship_column == user.id,
+            Mentorship.status.in_(
+                ("requested", "intro_scheduled", "intro_held", "active", "completed")
+            ),
+        )
+        .order_by(Mentorship.id.desc())
+        .first()
+    )
+    if mentorship and text.strip():
+        db.add(Message(mentorship_id=mentorship.id, sender_id=user.id, text=text.strip()))
+        db.commit()
+    return RedirectResponse(url="/messages", status_code=303)
 
 
 # ── Mentorship workspace ──────────────────────────────────────────────────────
+
+
+def _workspace_milestones(ms: Mentorship, deliverables: list[Deliverable], meetings: list[Meeting]):
+    intro_held = any(meeting.number == 0 and meeting.status == "held" for meeting in meetings)
+    deliverables_done = bool(deliverables) and all(item.status == "done" for item in deliverables)
+    return [
+        {"label": "Profile complete", "done": True, "current": False},
+        {"label": "Intro requested", "done": ms.status != "requested", "current": ms.status == "requested"},
+        {"label": "Mentor confirmed", "done": ms.status in ("active", "completed"), "current": ms.status in ("intro_scheduled", "intro_held")},
+        {"label": "First meeting", "done": intro_held, "current": ms.status == "active" and not intro_held},
+        {"label": "Deliverables", "done": deliverables_done, "current": ms.status == "active" and not deliverables_done},
+        {"label": "Complete", "done": ms.status == "completed", "current": False},
+    ]
 
 
 def _load_workspace(db: Session, mentorship_id: int):
@@ -715,6 +1021,7 @@ def _load_workspace(db: Session, mentorship_id: int):
         return None
     mentor = db.get(User, ms.mentor_id)
     student = db.get(User, ms.student_id)
+    student_request = db.get(StudentRequest, ms.request_id)
     deliverables = (
         db.query(Deliverable)
         .filter(Deliverable.mentorship_id == ms.id)
@@ -736,8 +1043,10 @@ def _load_workspace(db: Session, mentorship_id: int):
         "ms": ms,
         "mentor": mentor,
         "student": student,
+        "student_request": student_request,
         "deliverables": deliverables,
         "meetings": meetings,
+        "milestones": _workspace_milestones(ms, deliverables, meetings),
         "testimonials": testimonials,
         "messages": messages,
     }
@@ -795,6 +1104,17 @@ def record_decision(
 ):
     ms = db.get(Mentorship, mentorship_id)
     user = current_user(request, db)
+    if (
+        ms
+        and ms.status == "requested"
+        and user
+        and user.id == ms.mentor_id
+        and choice == "decline"
+    ):
+        ms.status = "ended"
+        ms.mentor_decision = "declined"
+        db.commit()
+        return RedirectResponse(url="/mentor/dashboard", status_code=303)
     side = "mentor" if user and user.id == ms.mentor_id else "student"
     fsm.decide(ms, side, choice)
     db.commit()
@@ -807,12 +1127,43 @@ def propose_deliverable(
     request: Request,
     db: Session = Depends(get_session),
     text: str = Form(...),
-    due_meeting: int | None = Form(None),
 ):
+    ms = db.get(Mentorship, mentorship_id)
+    user = current_user(request, db)
+    if ms is None:
+        raise HTTPException(status_code=404, detail="Mentorship not found.")
+    if user is None or user.id != ms.student_id:
+        raise HTTPException(status_code=403, detail="Only the student can propose a deliverable.")
+    if ms.status not in ("intro_held", "active"):
+        raise HTTPException(status_code=409, detail="Deliverables are available after the intro meeting.")
+    clean_text = text.strip()
+    if not clean_text:
+        raise HTTPException(status_code=422, detail="Describe the deliverable first.")
+    next_meetings = (
+        db.query(Meeting)
+        .filter(
+            Meeting.mentorship_id == mentorship_id,
+            Meeting.number > 0,
+            Meeting.status == "scheduled",
+        )
+        .order_by(Meeting.number)
+        .all()
+    )
+    all_meeting_numbers = [
+        number
+        for (number,) in db.query(Meeting.number)
+        .filter(Meeting.mentorship_id == mentorship_id)
+        .all()
+    ]
+    due_meeting = (
+        next_meetings[0].number
+        if next_meetings
+        else max(all_meeting_numbers, default=0) + 1
+    )
     db.add(
         Deliverable(
             mentorship_id=mentorship_id,
-            text=text,
+            text=clean_text,
             status="proposed",
             due_meeting=due_meeting,
         )
@@ -831,24 +1182,43 @@ def update_deliverable(
     status: str = Form(None),
 ):
     d = db.get(Deliverable, deliverable_id)
-    if d:
-        user = current_user(request, db)
-        ms = db.get(Mentorship, d.mentorship_id)
-        is_mentor = user and ms and user.id == ms.mentor_id
+    if d is None:
+        raise HTTPException(status_code=404, detail="Deliverable not found.")
+    ms = db.get(Mentorship, d.mentorship_id)
+    user = current_user(request, db)
+    if ms is None or user is None or user.id not in (ms.student_id, ms.mentor_id):
+        raise HTTPException(status_code=403, detail="Only mentorship participants can update deliverables.")
+    if ms.status not in ("intro_held", "active"):
+        raise HTTPException(status_code=409, detail="This mentorship is no longer active.")
+
+    is_mentor = user.id == ms.mentor_id
+    if status == "done":
+        if d.status != "approved":
+            raise HTTPException(status_code=409, detail="A deliverable must be approved before it can be completed.")
+        if is_mentor:
+            if text is not None:
+                clean_text = text.strip()
+                if not clean_text:
+                    raise HTTPException(status_code=422, detail="Describe the deliverable first.")
+                d.text = clean_text
+            if mentor_annotation is not None:
+                d.mentor_annotation = mentor_annotation.strip()
+        d.status = "done"
+    elif is_mentor and status in ("proposed", "approved"):
+        if d.status == "done":
+            raise HTTPException(status_code=409, detail="Completed deliverables can’t be changed.")
         if text is not None:
-            d.text = text
-        # Only the mentor may annotate/approve
-        if is_mentor and mentor_annotation is not None:
-            d.mentor_annotation = mentor_annotation
-        if status is not None:
-            if status in ("approved",) and not is_mentor:
-                pass  # students cannot approve
-            else:
-                d.status = status
-        db.commit()
-        mentorship_id = d.mentorship_id
-    else:
-        mentorship_id = 0
+            clean_text = text.strip()
+            if not clean_text:
+                raise HTTPException(status_code=422, detail="Describe the deliverable first.")
+            d.text = clean_text
+        if mentor_annotation is not None:
+            d.mentor_annotation = mentor_annotation.strip()
+        d.status = status
+    elif status is not None:
+        raise HTTPException(status_code=403, detail="You can’t make that deliverable change.")
+    mentorship_id = d.mentorship_id
+    db.commit()
     return RedirectResponse(url=f"/mentorship/{mentorship_id}", status_code=303)
 
 
@@ -902,28 +1272,44 @@ def leave_testimonial(
         if ms.status == "active":
             fsm.complete(ms)
         db.commit()
-    return RedirectResponse(url=f"/mentorship/{mentorship_id}", status_code=303)
+    return RedirectResponse(url=f"/mentorship/{mentorship_id}?completed=1", status_code=303)
 
 
-@router.post("/mentorships/{mentorship_id}/messages")
-def send_message(
+@router.post("/mentorships/{mentorship_id}/end")
+def end_mentorship(
     mentorship_id: int,
     request: Request,
     db: Session = Depends(get_session),
-    text: str = Form(...),
+    testimonial_text: str = Form(""),
 ):
-    """Append a chat message to the mentorship thread.
-
-    Both participants may post in any state. Empty messages and posts from a
-    non-participant are silently ignored (no write), then we redirect back so
-    the thread re-renders on reload.
-    """
     ms = db.get(Mentorship, mentorship_id)
     user = current_user(request, db)
-    if ms and user and user.id in (ms.mentor_id, ms.student_id) and text.strip():
-        db.add(Message(mentorship_id=ms.id, sender_id=user.id, text=text.strip()))
-        db.commit()
-    # Redirect back to the Messages tab (hash) so the full reload stays in chat.
-    # NOTE: the "#messages" fragment pairs with the hash-based tab JS in
-    # workspace.html; revisit if the overhaul moves tabs to partial swaps.
-    return RedirectResponse(url=f"/mentorship/{mentorship_id}#messages", status_code=303)
+    if ms is None:
+        raise HTTPException(status_code=404, detail="Mentorship not found.")
+    if user is None or user.id not in (ms.student_id, ms.mentor_id):
+        raise HTTPException(status_code=403, detail="Only mentorship participants can end this connection.")
+    if ms.status not in ("requested", "intro_scheduled", "intro_held", "active"):
+        raise HTTPException(status_code=409, detail="This connection has already ended.")
+
+    testimonial_added = False
+    if user.id == ms.student_id:
+        ms.student_decision = "declined"
+        testimonial_text = testimonial_text.strip()
+        if len(testimonial_text) > 2000:
+            raise HTTPException(status_code=422, detail="Keep the testimonial under 2,000 characters.")
+        if testimonial_text:
+            testimonial_added = True
+            db.add(
+                Testimonial(
+                    mentorship_id=ms.id,
+                    student_id=ms.student_id,
+                    mentor_id=ms.mentor_id,
+                    text=testimonial_text,
+                )
+            )
+    else:
+        ms.mentor_decision = "declined"
+    ms.status = "ended"
+    db.commit()
+    suffix = "&testimonial=1" if testimonial_added else ""
+    return RedirectResponse(url=f"/mentorship/{mentorship_id}?ended=1{suffix}", status_code=303)
