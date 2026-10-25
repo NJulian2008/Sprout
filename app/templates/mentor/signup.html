@@ -3,13 +3,13 @@
 {% block content %}
 {% set fd = form_data|default({}) %}
 {% if review_mode %}
-  <ol class="steps" aria-label="Step 7 of 7">
-    {% for n in range(7) %}<li class="done"></li>{% endfor %}
+  <ol class="steps" aria-label="Review and finish your profile">
+    {% for n in range(4) %}<li data-progress="{{ n }}" {% if n == 0 %}class="done"{% endif %}></li>{% endfor %}
   </ol>
-  <p class="eyebrow">Step 7 of 7</p>
+  <p class="eyebrow" data-step-count>Step 1 of 4</p>
   <h1>Review your skills</h1>
-  <p class="sub">These skills came from your resume. Adjust any confidence scores that look off.</p>
-  <form method="post" action="/mentor/signup">
+  <p class="sub">These skills came from your resume. Adjust anything that’s off.</p>
+  <form method="post" action="/mentor/signup" data-wizard data-total-steps="4">
     <input type="hidden" name="stage" value="create">
     <input type="hidden" name="name" value="{{ fd.get('name', '') }}">
     <input type="hidden" name="bio_short" value="{{ fd.get('bio_short', '') }}">
@@ -17,32 +17,73 @@
     <input type="hidden" name="org" value="{{ fd.get('org', '') }}">
     <input type="hidden" name="mentor_type" value="{{ fd.get('mentor_type', 'industry') }}">
     <input type="hidden" name="specialties" value="{{ fd.get('specialties', '') }}">
-    <input type="hidden" name="outcomes" value="{{ fd.get('outcomes', '') }}">
-    <input type="hidden" name="availability" value="{{ fd.get('availability', '') }}">
-    <input type="hidden" name="top3" value="{{ fd.get('top3', '') }}">
     <input type="hidden" name="resume_text" value="{{ fd.get('resume_text', '') }}">
     <input type="hidden" name="additional_experiences" value="{{ fd.get('additional_experiences', '') }}">
-    <div class="card">
-      {% set field_name = "skill_scores_json" %}
-      {% include "partials/skill_chips.html" %}
-    </div>
-    <button class="btn" type="submit">Create my profile</button>
-    <button class="back" type="button" data-history-back>Back</button>
+    <input type="hidden" name="outcomes" value="{{ fd.get('outcomes', '') }}" data-select-value="outcomes">
+    <input type="hidden" name="top3" value="{{ fd.get('top3', '') }}" data-select-value="top3">
+
+    <section class="wizard-step" data-step-panel="0">
+      <div class="card">
+        {% set field_name = "skill_scores_json" %}
+        {% include "partials/skill_chips.html" %}
+      </div>
+      <button class="btn" type="button" data-wizard-next>Continue</button>
+    </section>
+
+    <section class="wizard-step" data-step-panel="1" hidden>
+      <div class="card">
+        <h2 class="mt0">What can you help students do?</h2>
+        <p class="secondary">Choose all that fit.</p>
+        <div class="chips" data-select-group="outcomes">
+          {% for val, lab in [("learn_skill","Learn a skill"),("build_project","Build a project"),("career_navigation","Plan a career"),("research","Explore research")] %}
+            <button class="chip select" type="button" data-value="{{ val }}" aria-pressed="false">{{ lab }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <button class="btn" type="button" data-wizard-next>Continue</button>
+      <button class="back" type="button" data-wizard-back>Back</button>
+    </section>
+
+    <section class="wizard-step" data-step-panel="2" hidden>
+      <div class="card">
+        <h2 class="mt0">When are you free?</h2>
+        <p class="secondary">Choose the times that usually work for you.</p>
+        {% set current_avail = fd.get('availability', '').split(',') if fd.get('availability') else [] %}
+        {% set target = "availability" %}
+        {% include "partials/availability_grid.html" %}
+      </div>
+      <button class="btn" type="button" data-wizard-next>Continue</button>
+      <button class="back" type="button" data-wizard-back>Back</button>
+    </section>
+
+    <section class="wizard-step" data-step-panel="3" hidden>
+      <div class="card">
+        <h2 class="mt0">What defines your mentoring?</h2>
+        <p class="secondary">Choose three priorities.</p>
+        <p class="selection-count" aria-live="polite"><span data-counter="top3">0</span> of 3 selected</p>
+        <div class="chips" data-select-group="top3" data-max="3" data-min="3">
+          {% for val, lab in [("clear_feedback","Clear feedback"),("hands_on_building","Hands-on building"),("flexible_schedule","Flexible schedule"),("career_guidance","Career guidance"),("accountability","Accountability"),("casual_friendly","Casual and friendly"),("technical_depth","Technical depth"),("big_picture","Big picture")] %}
+            <button class="chip select" type="button" data-value="{{ val }}" aria-pressed="false">{{ lab }}</button>
+          {% endfor %}
+        </div>
+        <p class="field-error" data-select-error="top3" hidden>Choose three priorities.</p>
+      </div>
+      <button class="btn" type="submit">Create my profile</button>
+      <button class="back" type="button" data-wizard-back>Back</button>
+    </section>
   </form>
 {% else %}
   <ol class="steps" aria-label="Professional sign-up progress">
-    {% for n in range(6) %}<li data-progress="{{ n }}" {% if n < (step|default(0) + 1) %}class="done"{% endif %}></li>{% endfor %}
+    {% for n in range(3) %}<li data-progress="{{ n }}" {% if n < (step|default(0) + 1) %}class="done"{% endif %}></li>{% endfor %}
   </ol>
-  <p class="eyebrow" data-step-count>Step 1 of 6</p>
+  <p class="eyebrow" data-step-count>Step 1 of 3</p>
   <h1>Become a mentor</h1>
   <p class="sub">Share your experience and help a student grow.</p>
   {% if error %}<div class="banner danger" role="alert">{{ error }}</div>{% endif %}
 
-  <form method="post" action="/mentor/signup" enctype="multipart/form-data" data-wizard data-total-steps="6" data-initial-step="{{ step|default(0) }}">
+  <form method="post" action="/mentor/signup" enctype="multipart/form-data" data-wizard data-total-steps="3" data-initial-step="{{ step|default(0) }}">
     <input type="hidden" name="stage" value="review">
     <input type="hidden" name="specialties" value="{{ fd.get('specialties', '') }}" data-select-value="specialties">
-    <input type="hidden" name="outcomes" value="{{ fd.get('outcomes', '') }}" data-select-value="outcomes">
-    <input type="hidden" name="top3" value="{{ fd.get('top3', '') }}" data-select-value="top3">
 
     <section class="wizard-step" data-step-panel="0" {% if step|default(0) != 0 %}hidden{% endif %}>
       <div class="card">
@@ -76,7 +117,7 @@
     <section class="wizard-step" data-step-panel="2" {% if step|default(0) != 2 %}hidden{% endif %}>
       <div class="card">
         <h2 class="mt0">Add your resume</h2>
-        <p class="secondary">We’ll find your skills and let you review the confidence scores.</p>
+        <p class="secondary">We’ll find your skills and let you review them next.</p>
         <label class="drop" for="mentor-resume" data-dropzone>
           <input class="file-input" type="file" name="resume_file" id="mentor-resume"
                  accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
@@ -90,48 +131,7 @@
           <textarea id="additional-experiences" name="additional_experiences" placeholder="Projects, tools or experience not listed above">{{ fd.get('additional_experiences', '') }}</textarea>
         </div>
       </div>
-      <button class="btn" type="button" data-wizard-next>Continue</button>
-      <button class="back" type="button" data-wizard-back>Back</button>
-    </section>
-
-    <section class="wizard-step" data-step-panel="3" {% if step|default(0) != 3 %}hidden{% endif %}>
-      <div class="card">
-        <h2 class="mt0">What can you help students do?</h2>
-        <p class="secondary">Choose all that fit.</p>
-        <div class="chips" data-select-group="outcomes">
-          {% for val, lab in [("learn_skill","Learn a skill"),("build_project","Build a project"),("career_navigation","Plan a career"),("research","Explore research")] %}
-            <button class="chip select" type="button" data-value="{{ val }}" aria-pressed="false">{{ lab }}</button>
-          {% endfor %}
-        </div>
-      </div>
-      <button class="btn" type="button" data-wizard-next>Continue</button>
-      <button class="back" type="button" data-wizard-back>Back</button>
-    </section>
-
-    <section class="wizard-step" data-step-panel="4" {% if step|default(0) != 4 %}hidden{% endif %}>
-      <div class="card">
-        <h2 class="mt0">When are you free?</h2>
-        <p class="secondary">Choose the times that usually work for you.</p>
-        {% set current_avail = fd.get('availability', '').split(',') if fd.get('availability') else [] %}{% set target = "availability" %}
-        {% include "partials/availability_grid.html" %}
-      </div>
-      <button class="btn" type="button" data-wizard-next>Continue</button>
-      <button class="back" type="button" data-wizard-back>Back</button>
-    </section>
-
-    <section class="wizard-step" data-step-panel="5" {% if step|default(0) != 5 %}hidden{% endif %}>
-      <div class="card">
-        <h2 class="mt0">What defines your mentoring?</h2>
-        <p class="secondary">Choose three priorities.</p>
-        <p class="selection-count" aria-live="polite"><span data-counter="top3">0</span> of 3 selected</p>
-        <div class="chips" data-select-group="top3" data-max="3" data-min="3">
-          {% for val, lab in [("clear_feedback","Clear feedback"),("hands_on_building","Hands-on building"),("flexible_schedule","Flexible schedule"),("career_guidance","Career guidance"),("accountability","Accountability"),("casual_friendly","Casual and friendly"),("technical_depth","Technical depth"),("big_picture","Big picture")] %}
-            <button class="chip select" type="button" data-value="{{ val }}" aria-pressed="false">{{ lab }}</button>
-          {% endfor %}
-        </div>
-        <p class="field-error" data-select-error="top3" hidden>Choose three priorities to continue.</p>
-      </div>
-      <button class="btn" type="submit">Review my skills</button>
+      <button class="btn" type="submit">Continue to skills</button>
       <button class="back" type="button" data-wizard-back>Back</button>
     </section>
   </form>

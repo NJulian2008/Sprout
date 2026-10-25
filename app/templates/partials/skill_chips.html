@@ -1,8 +1,8 @@
 <div class="skill-editor" data-skill-editor>
   {% if skill_reviewed|default(false) %}
-    <p class="skill-note">AI confidence estimate. Edit anything that’s off, remove skills that do not fit, or add anything we missed.</p>
+    <p class="skill-note">Review these skills, remove anything that does not fit, or add anything we missed.</p>
   {% else %}
-    <p class="secondary">Review the extracted skills, adjust confidence scores, or add anything we missed.</p>
+    <p class="secondary">Review the extracted skills or add anything we missed.</p>
   {% endif %}
   <div class="chips skill-list" data-skill-list>
     {% for sid, conf in skill_scores.items() %}
@@ -20,12 +20,9 @@
   <div class="add-skill">
     <label class="lbl" for="add-skill">Add a skill</label>
     <div class="add-row">
-      <input type="text" id="add-skill" class="chip-add-input" list="skill-suggestions" data-add-skill placeholder="Search skills" autocomplete="off">
+      <input type="text" id="add-skill" class="chip-add-input" data-add-skill placeholder="Enter a skill name" autocomplete="off">
       <button class="btn alt sm chip-add" type="button" data-add-skill-button>Add</button>
     </div>
-    <datalist id="skill-suggestions">
-      {% for sid, item in taxonomy.items() %}<option value="{{ item.label }}" data-skill-id="{{ sid }}"></option>{% endfor %}
-    </datalist>
   </div>
   <div class="skill-toast" data-skill-toast role="status" aria-live="polite" hidden>
     <span data-toast-message></span>

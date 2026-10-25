@@ -170,7 +170,7 @@
       })
       .then(function (skill) {
         if (!skill.id) {
-          showSkillToast(editor, "Choose a skill from the suggestions.", null);
+          showSkillToast(editor, "No matching skill found. Try a recognized skill name or a close spelling.", null);
           return;
         }
         var existing = Array.from(list.querySelectorAll("[data-skill-item]")).find(function (item) {
@@ -187,14 +187,13 @@
         item.setAttribute("data-skill-id", skill.id);
         item.setAttribute("data-confidence", "100");
         item.querySelector("[data-skill-name]").textContent = skillLabel;
-        item.querySelector("[data-confidence-label]").textContent = "100%";
         item.querySelector("[data-skill-toggle]").setAttribute("aria-controls", editorId);
         item.querySelector("[data-skill-panel]").id = editorId;
         item.querySelector("[data-remove-skill]").setAttribute("aria-label", "Remove " + skillLabel);
         item.querySelector("[data-confidence-slider]").value = "100";
-        item.querySelector("[data-confidence-output]").textContent = "100%";
         var slider = item.querySelector("[data-confidence-slider]");
         slider.id = editorId + "-confidence";
+        slider.setAttribute("aria-label", "Confidence for " + skillLabel);
         item.querySelector(".slider-label").setAttribute("for", slider.id);
         list.appendChild(item);
         input.value = "";
@@ -262,8 +261,6 @@
       var item = slider.closest("[data-skill-item]");
       var value = Number(slider.value);
       item.setAttribute("data-confidence", String(value));
-      item.querySelector("[data-confidence-label]").textContent = value + "%";
-      item.querySelector("[data-confidence-output]").textContent = value + "%";
       syncSkills(slider.closest("[data-skill-editor]"), true);
     });
 

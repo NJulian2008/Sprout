@@ -2,12 +2,11 @@
   <div class="skill-chip-row">
     <button class="chip skill-chip" type="button" data-skill-toggle aria-expanded="false" aria-controls="skill-editor-{{ skill_id }}">
       <span data-skill-name>{{ skill_name }}</span>
-      <span class="conf" data-confidence-label>{{ confidence }}%</span>
     </button>
     <button class="remove-skill" type="button" data-remove-skill aria-label="Remove {{ skill_name }}">×</button>
   </div>
   <div class="chip-editor" id="skill-editor-{{ skill_id }}" data-skill-panel hidden>
-    <label class="slider-label" for="skill-confidence-{{ skill_id }}">Confidence <output data-confidence-output>{{ confidence }}%</output></label>
-    <input class="confidence-slider" type="range" id="skill-confidence-{{ skill_id }}" min="0" max="100" step="5" value="{{ confidence }}" data-confidence-slider>
+    <label class="slider-label" for="skill-confidence-{{ skill_id }}">Confidence</label>
+    <input class="confidence-slider" type="range" id="skill-confidence-{{ skill_id }}" min="0" max="100" step="5" value="{{ confidence }}" aria-label="Confidence for {{ skill_name }}" data-confidence-slider>
   </div>
 </div>

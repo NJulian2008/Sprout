@@ -162,6 +162,49 @@ def test_mentor_resume_review_stage_persists_edited_skills(client):
         db.close()
 
 
+def test_student_skill_review_follows_resume_and_has_step_navigation(client):
+    c, _ = client
+    review = c.post(
+        "/student/signup",
+        data={
+            "stage": "review",
+            "name": "Wizard Student",
+            "goal_text": "Build a Python project",
+            "specialty": "computer_science",
+        },
+        files={"resume_file": ("resume.txt", _make_txt("Python and Git"), "text/plain")},
+    )
+    assert review.status_code == 200
+    html = review.text
+    assert html.index("Review your skills") < html.index("When are you free?")
+    assert html.index("When are you free?") < html.index("What matters most to you?")
+    assert html.count('data-wizard-back') == 2
+    assert "data-history-back" not in html
+    assert "data-confidence-output" not in html
+    assert "%" not in html
+
+
+def test_mentor_skill_review_follows_resume_and_keeps_later_steps(client):
+    c, _ = client
+    review = c.post(
+        "/mentor/signup",
+        data={
+            "stage": "review",
+            "name": "Wizard Mentor",
+            "specialties": "computer_science",
+        },
+        files={"resume_file": ("resume.txt", _make_txt("Python and Git"), "text/plain")},
+    )
+    assert review.status_code == 200
+    html = review.text
+    assert html.index("Review your skills") < html.index("What can you help students do?")
+    assert html.index("What can you help students do?") < html.index("When are you free?")
+    assert html.index("When are you free?") < html.index("What defines your mentoring?")
+    assert html.count('data-wizard-back') == 3
+    assert "data-confidence-output" not in html
+    assert "%" not in html
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # Test case 1 — student discard (value edit + removal ignored server-side)
 #
@@ -297,17 +340,16 @@ def test_populated_chips_have_remove_control_and_editable_confidence(client):
 
 
 def test_populated_chips_have_taxonomy_add_control(client):
-    """A free-text add control offers taxonomy suggestions and canonical IDs."""
+    """A plain text add control resolves skill names without a combo selector."""
     c, _ = client
     r = c.post("/mentor/skills/extract", data={"text": "I know some python and git"})
     assert r.status_code == 200
     html = r.text
 
     assert 'class="chip-add-input"' in html, "Expected a free-text add box."
-    assert 'list="skill-suggestions"' in html and 'id="skill-suggestions"' in html
+    assert 'type="text"' in html and 'list="skill-suggestions"' not in html
+    assert "skill-suggestions" not in html and "<datalist" not in html
     assert "chip-add" in html, "Expected an add button."
-    assert "Python" in html, "Expected taxonomy labels as autocomplete options."
-    assert 'data-skill-id="python"' in html, "Expected canonical IDs in taxonomy options."
 
 
 # ════════════════════════════════════════════════════════════════════════════
