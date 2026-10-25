@@ -1,24 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Demo tools — Sprout{% endblock %}
+{% block title %}Developer view — Sprout{% endblock %}
 {% block main_class %}wide{% endblock %}
 {% block content %}
-<div class="banner info demo-banner"><strong>Demo tools</strong> · Controls for the sample app.</div>
-<h1>Demo panel</h1>
+<div class="banner info demo-banner"><strong>Developer view</strong> · Switch into a specific student or professional account.</div>
+<h1>Preview an account</h1>
 
 <section class="card">
-  <h2 class="mt0">Switch role</h2>
+  <h2 class="mt0">Choose a view</h2>
   <form method="post" action="/demo/role">
     <div class="field">
-      <label class="lbl" for="demo-user">Choose a demo user</label>
+      <label class="lbl" for="demo-role">View as</label>
+      <select id="demo-role" data-demo-role-select>
+        <option value="student" {% if current and current.role == 'student' %}selected{% endif %}>Student</option>
+        <option value="mentor" {% if current and current.role == 'mentor' %}selected{% endif %}>Professional</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="lbl" for="demo-user">Choose an account</label>
       <select id="demo-user" name="user_id">
         {% for user in users %}
-          <option value="{{ user.id }}" {% if current and current.id == user.id %}selected{% endif %}>
-            {{ user.name }} — {{ 'Mentor' if user.role == 'mentor' else 'Student' }}
+          <option value="{{ user.id }}" data-role="{{ user.role }}" {% if current and current.id == user.id %}selected{% endif %}>
+            {{ user.name }} — {{ 'Professional' if user.role == 'mentor' else 'Student' }}{% if user.major %} · {{ user.major }}{% elif user.title %} · {{ user.title }}{% endif %}
           </option>
         {% endfor %}
       </select>
     </div>
-    <button class="btn" type="submit">Switch role</button>
+    <button class="btn" type="submit">Open this account</button>
   </form>
 </section>
 

@@ -50,7 +50,6 @@ async def lifespan(app: FastAPI):
             connection.execute(
                 text("ALTER TABLE mentorprofile ADD COLUMN skill_levels JSON NOT NULL DEFAULT '{}'")
             )
-
         request_columns = {
             column["name"] for column in inspect(connection).get_columns("studentrequest")
         }

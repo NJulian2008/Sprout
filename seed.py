@@ -130,7 +130,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
                 "Fri-Morning",
             ],
             "top3": ["technical_depth", "clear_feedback", "big_picture"],
-            "max_students": 2,
+            "max_students": 1,
         },
         {
             "id": 2,
@@ -155,7 +155,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "outcomes": ["build_project", "career_navigation"],
             "availability": ["Tue-Evening", "Thu-Evening", "Sat-Morning", "Sat-Afternoon"],
             "top3": ["hands_on_building", "accountability", "technical_depth"],
-            "max_students": 2,
+            "max_students": 1,
         },
         {
             "id": 3,
@@ -178,7 +178,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "outcomes": ["learn_skill", "build_project"],
             "availability": ["Mon-Evening", "Tue-Evening", "Wed-Evening", "Thu-Evening"],
             "top3": ["technical_depth", "hands_on_building", "clear_feedback"],
-            "max_students": 2,
+            "max_students": 1,
         },
         {
             "id": 4,
@@ -206,7 +206,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
                 "Fri-Morning",
             ],
             "top3": ["big_picture", "career_guidance", "clear_feedback"],
-            "max_students": 2,
+            "max_students": 1,
         },
         {
             "id": 5,
@@ -229,7 +229,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "outcomes": ["learn_skill", "research"],
             "availability": ["Tue-Morning", "Thu-Morning", "Tue-Evening", "Thu-Evening"],
             "top3": ["clear_feedback", "technical_depth", "accountability"],
-            "max_students": 3,
+            "max_students": 1,
         },
         {
             "id": 6,
@@ -252,7 +252,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "outcomes": ["build_project", "learn_skill"],
             "availability": ["Mon-Evening", "Wed-Evening", "Fri-Evening", "Sat-Morning"],
             "top3": ["hands_on_building", "technical_depth", "flexible_schedule"],
-            "max_students": 2,
+            "max_students": 1,
         },
         {
             "id": 7,
@@ -274,7 +274,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "outcomes": ["learn_skill", "build_project"],
             "availability": ["Mon-Morning", "Wed-Morning", "Mon-Evening", "Wed-Evening"],
             "top3": ["clear_feedback", "big_picture", "casual_friendly"],
-            "max_students": 2,
+            "max_students": 1,
         },
         {
             "id": 8,
@@ -297,7 +297,7 @@ def _seed_all(db) -> None:  # noqa: PLR0912, PLR0915
             "outcomes": ["build_project", "learn_skill"],
             "availability": ["Tue-Evening", "Thu-Evening", "Fri-Evening", "Sat-Evening"],
             "top3": ["hands_on_building", "flexible_schedule", "casual_friendly"],
-            "max_students": 3,
+            "max_students": 1,
         },
     ]
 

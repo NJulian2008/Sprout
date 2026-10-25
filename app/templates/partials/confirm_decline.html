@@ -19,6 +19,6 @@
 {% elif ms.status == "completed" %}
   <div class="banner info" role="status">Your mentorship is complete. Thanks for the work you did together.</div>
 {% elif ms.status == "ended" %}
-  <p class="status-chip status-declined">Mentorship declined</p>
+  <p class="status-chip status-declined">Connection ended</p>
   {% if is_student %}<p><a href="/student/matches">See your other matches</a></p>{% endif %}
 {% endif %}

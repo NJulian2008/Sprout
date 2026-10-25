@@ -1,4 +1,4 @@
-/* Small progressive enhancements for onboarding, skill chips and tabs. */
+/* Small progressive enhancements for onboarding and skill confidence controls. */
 (function () {
   function setSelectValue(form, name, value) {
     var field = form.querySelector('[data-select-value="' + name + '"]');
@@ -127,18 +127,14 @@
 
   function syncSkills(editor, markReviewed) {
     var scores = {};
-    var levels = {};
     editor.querySelectorAll("[data-skill-item]").forEach(function (item) {
       var id = item.getAttribute("data-skill-id");
       if (!id) return;
       scores[id] = Number(item.getAttribute("data-confidence")) / 100;
-      levels[id] = item.getAttribute("data-level") || "intermediate";
     });
     var scoresField = editor.querySelector("[data-skill-scores]");
-    var levelsField = editor.querySelector("[data-skill-levels]");
     var reviewedField = editor.querySelector("[data-skill-reviewed]");
     if (scoresField) scoresField.value = JSON.stringify(scores);
-    if (levelsField) levelsField.value = JSON.stringify(levels);
     if (markReviewed && reviewedField) reviewedField.value = "1";
     var empty = editor.querySelector("[data-empty-skills]");
     var list = editor.querySelector("[data-skill-list]");
@@ -184,18 +180,13 @@
     var editorId = "skill-editor-new-" + Math.random().toString(36).slice(2, 9);
     item.setAttribute("data-skill-id", id);
     item.setAttribute("data-confidence", "100");
-    item.setAttribute("data-level", "intermediate");
     item.querySelector("[data-skill-name]").textContent = label;
     item.querySelector("[data-confidence-label]").textContent = "100%";
-    item.querySelector("[data-level-label]").textContent = "Intermediate";
     item.querySelector("[data-skill-toggle]").setAttribute("aria-controls", editorId);
     item.querySelector("[data-skill-panel]").id = editorId;
     item.querySelector("[data-remove-skill]").setAttribute("aria-label", "Remove " + label);
     item.querySelector("[data-confidence-slider]").value = "100";
     item.querySelector("[data-confidence-output]").textContent = "100%";
-    item.querySelectorAll("[data-set-level]").forEach(function (button) {
-      button.setAttribute("aria-pressed", button.getAttribute("data-set-level") === "intermediate" ? "true" : "false");
-    });
     var slider = item.querySelector("[data-confidence-slider]");
     slider.id = editorId + "-confidence";
     item.querySelector(".slider-label").setAttribute("for", slider.id);
@@ -244,18 +235,6 @@
         if (toast) toast.hidden = true;
         editorForUndo._sproutRemoved = null;
         return;
-      }
-
-      var levelButton = event.target.closest("[data-set-level]");
-      if (levelButton) {
-        var levelItem = levelButton.closest("[data-skill-item]");
-        var level = levelButton.getAttribute("data-set-level");
-        levelItem.setAttribute("data-level", level);
-        levelItem.querySelector("[data-level-label]").textContent = level.charAt(0).toUpperCase() + level.slice(1);
-        levelItem.querySelectorAll("[data-set-level]").forEach(function (button) {
-          button.setAttribute("aria-pressed", button === levelButton ? "true" : "false");
-        });
-        syncSkills(levelButton.closest("[data-skill-editor]"), true);
       }
 
       var addButton = event.target.closest("[data-add-skill-button]");
@@ -339,44 +318,6 @@
     });
   }
 
-  function initTabs() {
-    document.querySelectorAll('[role="tablist"]').forEach(function (list) {
-      var tabs = Array.from(list.querySelectorAll('[role="tab"]'));
-
-      function activate(tab, focus) {
-        tabs.forEach(function (item) {
-          var selected = item === tab;
-          item.classList.toggle("active", selected);
-          item.setAttribute("aria-selected", selected ? "true" : "false");
-          item.tabIndex = selected ? 0 : -1;
-          var panel = document.getElementById(item.getAttribute("aria-controls"));
-          if (panel) {
-            panel.hidden = !selected;
-            panel.classList.toggle("active", selected);
-          }
-        });
-        if (focus) tab.focus();
-      }
-
-      list.addEventListener("click", function (event) {
-        var tab = event.target.closest('[role="tab"]');
-        if (tab) activate(tab, false);
-      });
-      list.addEventListener("keydown", function (event) {
-        var index = tabs.indexOf(event.target.closest('[role="tab"]'));
-        if (index < 0) return;
-        var next = null;
-        if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
-        if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
-        if (event.key === "Home") next = 0;
-        if (event.key === "End") next = tabs.length - 1;
-        if (next !== null) { event.preventDefault(); activate(tabs[next], true); }
-      });
-      var hashTab = tabs.find(function (tab) { return window.location.hash === "#" + tab.getAttribute("data-tab"); });
-      if (hashTab) activate(hashTab, false);
-    });
-  }
-
   function initExtract() {
     document.body.addEventListener("htmx:beforeRequest", function (event) {
       var button = event.detail.elt && event.detail.elt.closest("[data-extract-button]");
@@ -425,13 +366,35 @@
     });
   }
 
+  function initDemoAccountPicker() {
+    document.querySelectorAll("[data-demo-role-select]").forEach(function (roleSelect) {
+      var accountSelect = document.getElementById("demo-user");
+      if (!accountSelect) return;
+
+      function filterAccounts() {
+        var visible = Array.from(accountSelect.options).filter(function (option) {
+          return option.getAttribute("data-role") === roleSelect.value;
+        });
+        accountSelect.querySelectorAll("option").forEach(function (option) {
+          option.hidden = option.getAttribute("data-role") !== roleSelect.value;
+        });
+        if (visible.length && !visible.some(function (option) { return option.selected; })) {
+          visible[0].selected = true;
+        }
+      }
+
+      roleSelect.addEventListener("change", filterAccounts);
+      filterAccounts();
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     initWizards();
     initSkillEvents();
     initDropzones();
     initResumeExtractField();
-    initTabs();
     initExtract();
     initOtherControls();
+    initDemoAccountPicker();
   });
 })();

@@ -48,7 +48,7 @@ class MentorSignupRequest(BaseModel):
     outcomes: list[str] = Field(default_factory=list)
     availability: list[str] = Field(default_factory=list)
     top3: list[str] = Field(default_factory=list)
-    max_students: int = 2
+    max_students: int = 1
 
 
 class MentorCardOut(BaseModel):

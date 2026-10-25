@@ -35,13 +35,17 @@
   {% if error %}<div class="banner danger" role="alert">{{ error }}</div>{% endif %}
   <form method="post" action="/student/signup" enctype="multipart/form-data" data-wizard data-total-steps="4" data-initial-step="{{ step|default(0) }}">
     <input type="hidden" name="stage" value="review">
-    <input type="hidden" name="name" value="{{ fd.get('name', 'Demo Student') }}">
     <input type="hidden" name="cadence" value="weekly">
     <input type="hidden" name="top3" value="{{ fd.get('top3', '') }}" data-select-value="top3">
 
     <section class="wizard-step" data-step-panel="0" {% if step|default(0) != 0 %}hidden{% endif %}>
       <div class="card">
-        <h2 class="mt0">What would you like help with?</h2>
+        <h2 class="mt0">About you</h2>
+        <div class="field">
+          <label class="lbl" for="student-name">Your name</label>
+          <input id="student-name" type="text" name="name" autocomplete="name" required maxlength="120"
+                 value="{{ fd.get('name', '') }}" placeholder="Your name">
+        </div>
         <div class="field">
           <label class="lbl" for="goal_text">Your goal</label>
           <input type="text" name="goal_text" id="goal_text" required maxlength="300"

@@ -5,7 +5,7 @@
 <section class="profile-heading">
   <span class="avatar avatar-large"><img src="{{ mentor.headshot_url }}" alt=""></span>
   <div>
-    <p class="eyebrow">Mentor profile</p>
+    <p class="eyebrow">{{ 'Professional profile' if mentor.mentor_type == 'industry' else 'Faculty mentor profile' }}</p>
     <h1>{{ mentor.name }}</h1>
     <p class="secondary">{{ mentor.title }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
     {% if mentor.bio_short %}<p>{{ mentor.bio_short }}</p>{% endif %}
@@ -18,6 +18,18 @@
   <div class="stat"><strong>{{ testimonials|length }}</strong><span>Testimonials</span></div>
 </section>
 
+{% if current and current.id == mentor.id and profile %}
+  <section class="card">
+    <h2 class="mt0">Mentoring preferences</h2>
+    {% if request.query_params.get('settings_saved') == '1' %}<div class="banner info" role="status">Your preference is saved.</div>{% endif %}
+    <p class="secondary">Your default capacity is one student. Turn this on to accept one more.</p>
+    <form method="post" action="/mentor/profile/preferences">
+      <label class="check-option"><input type="checkbox" name="accept_more_requests" value="1" {% if profile.max_students > 1 %}checked{% endif %}><span>I’m open to mentoring one additional student</span></label>
+      <button class="btn alt sm" type="submit">Save preference</button>
+    </form>
+  </section>
+{% endif %}
+
 <section class="card">
   <h2 class="mt0">Technical background</h2>
   {% if profile and profile.skill_scores %}
@@ -25,7 +37,6 @@
       {% for sid, conf in profile.skill_scores.items() %}
         <span class="chip">{{ taxonomy[sid].label if sid in taxonomy else sid|replace('_', ' ')|title }}
           <span class="conf">{{ (conf*100)|round|int }}%</span>
-          <span class="badge skill-level">{{ skill_levels.get(sid, profile.experience_level)|capitalize }}</span>
         </span>
       {% endfor %}
     </div>

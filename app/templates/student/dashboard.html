@@ -1,50 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Student dashboard — Sprout{% endblock %}
 {% block content %}
+<p class="eyebrow">Your home</p>
 <h1>Welcome, {{ current.name if current else "student" }}</h1>
-<p class="sub">Your mentorships and next steps.</p>
-
-{% if not items %}
-  <div class="empty-state">
-    <img src="/static/images/Sprout_Main.svg" alt="Sprout">
-    <p>You don’t have a mentorship yet.</p>
-    <a class="btn" href="/student/matches">Find a mentor</a>
-  </div>
-{% endif %}
-
-{% for item in items %}
-  {% set ms = item.ms %}{% set mentor = item.mentor %}
-  {% set pending = item.deliverables|selectattr("status", "ne", "done")|list %}
-  <article class="card mentorship-card">
-    {% if ms.status == "active" and pending %}
-      <div class="banner warn"><strong>Before your next meeting:</strong> {{ pending[0].text }}{% if pending|length > 1 %} and {{ pending|length - 1 }} more{% endif %}</div>
-    {% endif %}
-    <div class="card-heading">
-      <span class="avatar"><img src="{{ mentor.headshot_url }}" alt=""></span>
-      <div class="grow">
-        <h2 class="card-title">{{ mentor.name }}</h2>
-        <p class="secondary">{{ mentor.title }}</p>
-      </div>
-      <span class="status-chip status-{{ 'pending' if ms.status in ('requested', 'intro_scheduled', 'intro_held') else 'completed' if ms.status == 'completed' else 'declined' if ms.status in ('ended', 'declined') else 'confirmed' }}">
-        {{ {"requested":"Pending", "intro_scheduled":"Intro scheduled", "intro_held":"Needs decision", "active":"Active", "completed":"Completed", "ended":"Declined"}.get(ms.status, ms.status|title) }}
-      </span>
-    </div>
-    <ol class="timeline" aria-label="Mentorship progress">
-      {% for milestone in item.milestones %}
-        <li class="{% if milestone.done %}done{% elif milestone.current %}current{% endif %}">
-          <span>{{ milestone.label }}</span>
-          {% if milestone.done %}<span class="timeline-state">Done</span>{% elif milestone.current %}<span class="timeline-state">Now</span>{% endif %}
-        </li>
-      {% endfor %}
-    </ol>
-    {% if ms.status == "intro_held" %}
-      <section class="decision-card">
-        <h3>Would you like to continue?</h3>
-        {% set student = current %}
-        {% include "partials/confirm_decline.html" with context %}
-      </section>
-    {% endif %}
-    <a class="btn alt" href="/mentorship/{{ ms.id }}">Open mentorship</a>
-  </article>
-{% endfor %}
+<div class="empty-state">
+  <img src="/static/images/Sprout_Main.svg" alt="Sprout">
+  <p>You don’t have a mentorship yet.</p>
+  <a class="btn" href="/student/matches">Find a mentor</a>
+</div>
 {% endblock %}

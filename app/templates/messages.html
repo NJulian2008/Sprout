@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Messages — Sprout{% endblock %}
+{% block content %}
+<p class="eyebrow">Your conversations</p>
+<h1>Messages</h1>
+{% if partner %}
+  <section class="card">
+    <div class="card-heading">
+      <span class="avatar"><img src="{{ partner.headshot_url }}" alt=""></span>
+      <div class="grow">
+        <h2 class="mt0">{{ partner.name }}</h2>
+        <p class="secondary mb0">{{ 'Your student' if current.role == 'mentor' else 'Your mentor' }}</p>
+      </div>
+      <span class="status-chip {{ 'status-completed' if mentorship.status == 'completed' else 'status-confirmed' }}">{{ mentorship.status|replace('_', ' ')|title }}</span>
+    </div>
+    <div class="message-placeholder">
+      <div><img src="/static/images/Sprout_Main.svg" alt="Sprout"><p class="mb0">Messaging is coming soon.</p></div>
+    </div>
+    <a class="btn alt" href="/mentorship/{{ mentorship.id }}">Back to mentorship</a>
+  </section>
+{% else %}
+  <div class="empty-state">
+    <img src="/static/images/Sprout_Main.svg" alt="Sprout">
+    <p>{% if current.role == 'mentor' %}Your student conversations will show up here.{% else %}Your mentor conversations will show up here.{% endif %}</p>
+    <a class="btn" href="{{ '/mentor/dashboard' if current.role == 'mentor' else '/student/dashboard' }}">Back to dashboard</a>
+  </div>
+{% endif %}
+{% endblock %}

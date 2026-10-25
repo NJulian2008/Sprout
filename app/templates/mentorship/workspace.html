@@ -1,127 +1,196 @@
 {% extends "base.html" %}
-{% block title %}Mentorship workspace — Sprout{% endblock %}
+{% block title %}Mentorship dashboard — Sprout{% endblock %}
 {% block main_class %}wide{% endblock %}
 {% block content %}
 {% set is_mentor = current and current.id == ms.mentor_id %}
 {% set is_student = current and current.id == ms.student_id %}
-<div class="workspace-heading">
-  <div class="people-pair">
+{% set pending_deliverables = deliverables|rejectattr("status", "equalto", "done")|list %}
+{% set upcoming_meetings = meetings|selectattr("status", "equalto", "scheduled")|list %}
+{% set past_meetings = meetings|selectattr("status", "equalto", "held")|list %}
+
+<section class="card workspace-overview">
+  <div class="people-pair" aria-hidden="true">
     <span class="avatar"><img src="{{ student.headshot_url }}" alt=""></span>
-    <span class="pair-mark" aria-hidden="true">&amp;</span>
+    <span class="pair-mark">&amp;</span>
     <span class="avatar"><img src="{{ mentor.headshot_url }}" alt=""></span>
   </div>
   <div class="grow">
-    <h1>{{ student.name }} &amp; {{ mentor.name }}</h1>
+    <p class="eyebrow">Dashboard · Your mentorship</p>
+    <h1>{{ student.name if is_mentor else mentor.name }}</h1>
+    {% if is_mentor %}
+      <p class="secondary">{{ student_request.goal_text if student_request else "Your student's next goal" }}</p>
+      {% if student.major or student.year %}<p class="secondary">{{ student.major or 'Student' }}{% if student.year %} · {{ student.year }}{% endif %}</p>{% endif %}
+      {% if student.bio_short %}<p class="secondary">{{ student.bio_short }}</p>{% endif %}
+    {% else %}
+      <p class="secondary">{{ mentor.title or 'Your mentor' }}{% if mentor.org %} · {{ mentor.org }}{% endif %}</p>
+    {% endif %}
     <p class="secondary">{{ ms.cadence|replace("_", " ")|title }}{% if ms.duration_weeks %} · {{ ms.duration_weeks }} weeks{% endif %}</p>
   </div>
   <span class="status-chip {{ 'status-completed' if ms.status == 'completed' else 'status-declined' if ms.status in ('ended', 'declined') else 'status-confirmed' if ms.status == 'active' else 'status-pending' }}">
-    {{ {"requested":"Requested", "intro_scheduled":"Intro scheduled", "intro_held":"Needs decision", "active":"Active", "completed":"Completed", "ended":"Declined"}.get(ms.status, ms.status|title) }}
+    {{ {"requested":"Requested", "intro_scheduled":"Intro scheduled", "intro_held":"Needs decision", "active":"Active", "completed":"Completed", "ended":"Ended"}.get(ms.status, ms.status|title) }}
   </span>
-</div>
+</section>
 
 {% if request.query_params.get('completed') == '1' %}
   <div class="banner info" role="status">Thanks for sharing your experience. This mentorship is complete.</div>
 {% endif %}
+{% if request.query_params.get('ended') == '1' %}
+  <div class="banner info" role="status">This connection has ended.{% if is_student and request.query_params.get('testimonial') == '1' %} Your testimonial was added to {{ mentor.name }}’s profile.{% endif %}</div>
+{% endif %}
 
-<div class="tabs" role="tablist" aria-label="Mentorship workspace">
-  {% for key, label in [("deliverables","Deliverables"),("meetings","Meetings"),("confirm","Confirm"),("messages","Messages")] %}
-    <button class="tab {% if loop.first %}active{% endif %}" type="button" role="tab" id="tab-{{ key }}" aria-controls="panel-{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}" tabindex="{{ '0' if loop.first else '-1' }}" data-tab="{{ key }}">{{ label }}</button>
-  {% endfor %}
-</div>
+{% if ms.status == "requested" %}
+  <section class="card">
+    {% if is_mentor %}
+      <h2 class="mt0">Choose an intro time</h2>
+      <p class="secondary">Pick a time that works for you and {{ student.name }}.</p>
+      <form method="post" action="/mentorships/{{ ms.id }}/intro">
+        <div class="field"><label class="lbl" for="intro-slot">Agreed time</label><input id="intro-slot" type="text" name="slot" required placeholder="Tue evening"></div>
+        <button class="btn" type="submit">Schedule intro</button>
+      </form>
+    {% else %}
+      <h2 class="mt0">Your request is with {{ mentor.name }}</h2>
+      <p class="secondary mb0">We’ll show the intro time here when it’s scheduled.</p>
+    {% endif %}
+  </section>
+{% endif %}
 
-<section class="tab-panel active" id="panel-deliverables" role="tabpanel" aria-labelledby="tab-deliverables" tabindex="0">
-  {% if not deliverables %}<div class="empty-state compact-empty"><p>No deliverables yet.</p></div>{% endif %}
+{% if ms.status in ("intro_held", "active", "completed", "ended") %}
+  <section class="card decision-card">
+    {% if ms.status == "intro_held" %}<h2 class="mt0">Confirm your mentorship</h2>{% endif %}
+    {% include "partials/confirm_decline.html" with context %}
+  </section>
+{% endif %}
+
+{% if is_student %}
+  <section class="card student-progress">
+    <div class="section-heading"><div><p class="eyebrow">Your path</p><h2>Progress checklist</h2></div></div>
+    <ol class="timeline" aria-label="Mentorship progress">
+      {% for milestone in milestones %}
+        <li class="{% if milestone.done %}done{% elif milestone.current %}current{% endif %}">
+          <span>{{ milestone.label }}</span>
+          {% if milestone.done %}<span class="timeline-state">Done</span>{% elif milestone.current %}<span class="timeline-state">Now</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </section>
+{% endif %}
+
+<section class="workspace-section">
+  <div class="section-heading">
+    <div><p class="eyebrow">Plan for the next meeting</p><h2>Deliverables</h2></div>
+    {% if deliverables %}<span class="badge">{{ pending_deliverables|length }} to finish</span>{% endif %}
+  </div>
+  {% if not deliverables %}
+    <div class="empty-state compact-empty"><p>No deliverables yet.</p></div>
+  {% endif %}
   {% for item in deliverables %}
     <article class="card deliverable-card">
       <div class="card-heading">
         <h3 class="grow">{{ item.text }}</h3>
         <span class="status-chip status-{{ 'completed' if item.status == 'done' else 'confirmed' if item.status == 'approved' else 'pending' }}">{{ {"proposed":"Proposed", "approved":"Approved", "done":"Done"}.get(item.status, item.status|title) }}</span>
       </div>
-      {% if item.mentor_annotation %}<p class="secondary">Mentor note: {{ item.mentor_annotation }}</p>{% endif %}
+      {% if item.due_meeting is not none %}<p class="secondary small-text">For {{ 'the next meeting' if item.due_meeting > 0 else 'the intro meeting' }}{% if item.due_meeting > 0 %} · Meeting {{ item.due_meeting }}{% endif %}</p>{% endif %}
+      {% if item.mentor_annotation %}<p class="secondary mt16">{{ item.mentor_annotation }}</p>{% endif %}
       {% if is_mentor and item.status in ("proposed", "approved") %}
         <form method="post" action="/deliverables/{{ item.id }}" class="inline-form">
+          <label class="lbl" for="deliverable-{{ item.id }}">{{ 'Review or edit the deliverable' if item.status == 'proposed' else 'Update the deliverable' }}</label>
+          <input id="deliverable-{{ item.id }}" type="text" name="text" value="{{ item.text }}" required>
           <label class="lbl" for="annotation-{{ item.id }}">Mentor note</label>
           <input id="annotation-{{ item.id }}" type="text" name="mentor_annotation" value="{{ item.mentor_annotation }}">
-          {% if item.status == "proposed" %}<button class="btn alt sm" name="status" value="approved">Approve</button>{% endif %}
-          {% if item.status == "approved" %}<button class="btn alt sm" name="status" value="done">Mark done</button>{% endif %}
-          <button class="text-button" name="status" value="{{ item.status }}">Save note</button>
+          <button class="btn alt sm" name="status" value="{{ item.status }}">Save changes</button>
+          {% if item.status == "proposed" %}<button class="btn sm" name="status" value="approved">Approve</button>{% endif %}
+          {% if item.status == "approved" %}<button class="btn alt sm" name="status" value="done">Mark complete</button>{% endif %}
         </form>
+      {% elif is_student and item.status == "proposed" %}
+        <p class="secondary small-text mt16">Waiting for {{ mentor.name }} to review this.</p>
+      {% elif is_student and item.status == "approved" %}
+        <p class="secondary small-text mt16">Ready to work on before the next meeting.</p>
+        <form method="post" action="/deliverables/{{ item.id }}"><button class="btn alt sm" name="status" value="done">Mark complete</button></form>
       {% endif %}
     </article>
   {% endfor %}
   {% if is_student and ms.status in ("intro_held", "active") %}
-    <section class="card">
-      <h3>Propose a deliverable</h3>
+    <article class="card">
+      <h3>Agree on a deliverable</h3>
       <form method="post" action="/mentorships/{{ ms.id }}/deliverables">
         <div class="field"><label class="lbl" for="new-deliverable">What will you work on?</label><input id="new-deliverable" type="text" name="text" required placeholder="A project, practice or milestone"></div>
         <button class="btn alt" type="submit">Add deliverable</button>
       </form>
-    </section>
+    </article>
   {% endif %}
 </section>
 
-<section class="tab-panel" id="panel-meetings" role="tabpanel" aria-labelledby="tab-meetings" tabindex="0" hidden>
-  {% if ms.status == "requested" and is_mentor %}
-    <article class="card">
-      <h3>Schedule the intro</h3>
-      <form method="post" action="/mentorships/{{ ms.id }}/intro">
-        <div class="field"><label class="lbl" for="intro-slot">Agreed time</label><input id="intro-slot" type="text" name="slot" required placeholder="Tue evening"></div>
-        <button class="btn" type="submit">Schedule intro</button>
-      </form>
-    </article>
+<section class="workspace-section">
+  <div class="section-heading">
+    <div><p class="eyebrow">Stay connected</p><h2>Meetings</h2></div>
+    <span class="badge">{{ meetings|length }}</span>
+  </div>
+  {% if not upcoming_meetings and not past_meetings %}
+    <div class="empty-state compact-empty"><p>No meetings scheduled yet.</p></div>
   {% endif %}
-  {% if not meetings %}<div class="empty-state compact-empty"><p>No meetings scheduled yet.</p></div>{% endif %}
-  {% for meeting in meetings %}
-    <article class="card meeting-card">
+  {% for meeting in upcoming_meetings %}
+    <article class="card meeting-card upcoming-meeting">
       <div class="card-heading">
         <h3 class="grow">{{ "Intro meeting" if meeting.number == 0 else "Meeting " ~ meeting.number }}</h3>
-        <span class="status-chip {{ 'status-completed' if meeting.status == 'held' else 'status-pending' }}">{{ "Held" if meeting.status == "held" else "Upcoming" }}</span>
+        <span class="status-chip status-pending">Upcoming</span>
       </div>
-      {% if meeting.agreed_time_text %}<p><strong>Time:</strong> {{ meeting.agreed_time_text }}</p>{% endif %}
-      {% if meeting.summary %}<p>{{ meeting.summary }}</p>{% endif %}
-      {% if meeting.progress_notes %}<ul class="plain-list">{% for note in meeting.progress_notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
-      {% if meeting.number == 0 and meeting.status == "scheduled" and is_mentor %}
-        <form method="post" action="/mentorships/{{ ms.id }}/intro/held"><button class="btn alt" type="submit">Mark intro held</button></form>
-      {% endif %}
-      {% if is_mentor and ms.status == "active" %}
-        <form method="post" action="/mentorships/{{ ms.id }}/meetings/{{ meeting.number }}" class="meeting-note-form">
-          <label class="lbl" for="note-{{ meeting.id }}">Add a progress note</label>
-          <input id="note-{{ meeting.id }}" type="text" name="note" placeholder="What moved forward?">
-          <button class="btn alt sm" type="submit">Save note</button>
-        </form>
+      {% if meeting.agreed_time_text %}<p><strong>When:</strong> {{ meeting.agreed_time_text }}</p>{% endif %}
+      {% if meeting.number == 0 and is_mentor %}
+        <form method="post" action="/mentorships/{{ ms.id }}/intro/held"><button class="btn alt" type="submit">Mark intro as held</button></form>
       {% endif %}
     </article>
   {% endfor %}
   {% if ms.status == "active" and is_mentor %}
     <article class="card">
-      <h3>Schedule the next meeting</h3>
+      <h3>Plan your next meeting</h3>
       <form method="post" action="/mentorships/{{ ms.id }}/meetings/{{ meetings|length }}">
         <div class="field"><label class="lbl" for="next-meeting-time">Agreed time</label><input id="next-meeting-time" type="text" name="agreed_time_text" placeholder="Next Tuesday at 7pm"></div>
-        <button class="btn" type="submit">Add meeting</button>
+        <button class="btn alt" type="submit">Add meeting</button>
       </form>
     </article>
   {% endif %}
-  {% if is_student and ms.status == "active" and not testimonials %}
-    <article class="card testimonial-card">
-      <h3>Share how this mentorship helped</h3>
-      <form method="post" action="/mentorships/{{ ms.id }}/testimonial">
-        <div class="field"><label class="lbl" for="testimonial-text">Your testimonial</label><textarea id="testimonial-text" name="text" required placeholder="What changed for you?"></textarea></div>
-        <button class="btn" type="submit">Submit and complete</button>
-      </form>
-    </article>
-  {% elif is_student and testimonials %}
-    {% for item in testimonials %}<blockquote class="quote-card"><p>“{{ item.text }}”</p></blockquote>{% endfor %}
+  {% if past_meetings %}
+    <details class="meeting-history">
+      <summary>Past meetings and notes · {{ past_meetings|length }}</summary>
+      {% for meeting in past_meetings %}
+        <article class="card meeting-card">
+          <h3>{{ "Intro meeting" if meeting.number == 0 else "Meeting " ~ meeting.number }}</h3>
+          {% if meeting.agreed_time_text %}<p class="secondary">{{ meeting.agreed_time_text }}</p>{% endif %}
+          {% if meeting.summary %}<p>{{ meeting.summary }}</p>{% endif %}
+          {% if meeting.progress_notes %}<ul class="plain-list">{% for note in meeting.progress_notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
+          {% if is_mentor and ms.status == "active" %}
+            <form method="post" action="/mentorships/{{ ms.id }}/meetings/{{ meeting.number }}" class="meeting-note-form">
+              <label class="lbl" for="note-{{ meeting.id }}">Add a progress note</label>
+              <input id="note-{{ meeting.id }}" type="text" name="note" placeholder="What moved forward?">
+              <button class="btn alt sm" type="submit">Save note</button>
+            </form>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </details>
   {% endif %}
 </section>
 
-<section class="tab-panel" id="panel-confirm" role="tabpanel" aria-labelledby="tab-confirm" tabindex="0" hidden>
-  <article class="card decision-card">
-    <h2 class="mt0">{{ "Mentorship complete" if ms.status == "completed" else "Confirm this mentorship" }}</h2>
-    {% include "partials/confirm_decline.html" with context %}
-  </article>
-</section>
+{% if testimonials %}
+  {% for item in testimonials %}<blockquote class="quote-card"><p>“{{ item.text }}”</p></blockquote>{% endfor %}
+{% endif %}
 
-<section class="tab-panel" id="panel-messages" role="tabpanel" aria-labelledby="tab-messages" tabindex="0" hidden>
-  <div class="empty-state"><img src="/static/images/Sprout_Main.svg" alt="Sprout"><p>Messaging is coming soon.</p></div>
-</section>
+{% if (is_student or is_mentor) and ms.status in ("requested", "intro_scheduled", "intro_held", "active") %}
+  <details class="connection-end">
+    <summary>End this connection</summary>
+    <div class="connection-end-content">
+      {% if is_student %}
+        <p class="secondary">You can optionally share a testimonial. It will appear on {{ mentor.name }}’s profile.</p>
+      {% else %}
+        <p class="secondary">This will close the mentorship with {{ student.name }}.</p>
+      {% endif %}
+      <form method="post" action="/mentorships/{{ ms.id }}/end">
+        {% if is_student %}
+          <div class="field"><label class="lbl" for="end-testimonial">Optional testimonial</label><textarea id="end-testimonial" name="testimonial_text" maxlength="2000" placeholder="Share what you appreciated about this mentorship"></textarea></div>
+        {% endif %}
+        <button class="btn alt danger sm" type="submit">End connection</button>
+      </form>
+    </div>
+  </details>
+{% endif %}
 {% endblock %}

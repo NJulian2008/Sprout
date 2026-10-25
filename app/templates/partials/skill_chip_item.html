@@ -1,21 +1,12 @@
-<div class="skill-item" data-skill-item data-skill-id="{{ skill_id }}" data-confidence="{{ confidence }}" data-level="{{ level }}">
+<div class="skill-item" data-skill-item data-skill-id="{{ skill_id }}" data-confidence="{{ confidence }}">
   <div class="skill-chip-row">
     <button class="chip skill-chip" type="button" data-skill-toggle aria-expanded="false" aria-controls="skill-editor-{{ skill_id }}">
       <span data-skill-name>{{ skill_name }}</span>
       <span class="conf" data-confidence-label>{{ confidence }}%</span>
-      <span class="badge skill-level" data-level-label>{{ level|capitalize }}</span>
     </button>
     <button class="remove-skill" type="button" data-remove-skill aria-label="Remove {{ skill_name }}">×</button>
   </div>
   <div class="chip-editor" id="skill-editor-{{ skill_id }}" data-skill-panel hidden>
-    <fieldset class="level-picker">
-      <legend>Experience level</legend>
-      <div class="level-options">
-        {% for value, label in [("beginner","Beginner"),("intermediate","Intermediate"),("advanced","Advanced")] %}
-          <button class="level-option" type="button" data-set-level="{{ value }}" aria-pressed="{{ 'true' if level == value else 'false' }}">{{ label }}</button>
-        {% endfor %}
-      </div>
-    </fieldset>
     <label class="slider-label" for="skill-confidence-{{ skill_id }}">Confidence <output data-confidence-output>{{ confidence }}%</output></label>
     <input class="confidence-slider" type="range" id="skill-confidence-{{ skill_id }}" min="0" max="100" step="5" value="{{ confidence }}" data-confidence-slider>
   </div>

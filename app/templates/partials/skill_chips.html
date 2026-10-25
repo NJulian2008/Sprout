@@ -1,15 +1,14 @@
 <div class="skill-editor" data-skill-editor>
   {% if skill_reviewed|default(false) %}
-    <p class="skill-note">AI estimate. Edit anything that’s off.</p>
+    <p class="skill-note">AI confidence estimate. Edit anything that’s off. These scores help us understand your experience.</p>
   {% else %}
-    <p class="secondary">Paste your resume text, then choose “Find my skills”. You can edit the results.</p>
+    <p class="secondary">Paste your resume text, then choose “Find my skills”. You can adjust the scores.</p>
   {% endif %}
   <div class="chips skill-list" data-skill-list>
     {% for sid, conf in skill_scores.items() %}
       {% set skill_id = sid %}
       {% set skill_name = taxonomy[sid].label if sid in taxonomy else sid|replace('_', ' ')|title %}
       {% set confidence = (conf * 100)|round|int %}
-      {% set level = skill_levels.get(sid, 'intermediate') if skill_levels else 'intermediate' %}
       {% include "partials/skill_chip_item.html" %}
     {% endfor %}
   </div>
@@ -33,11 +32,10 @@
     <button type="button" data-undo-remove>Undo</button>
   </div>
   <input type="hidden" name="{{ field_name }}" value="{{ skill_scores|tojson }}" data-skill-scores>
-  <input type="hidden" name="skill_levels_json" value="{{ skill_levels|default({})|tojson }}" data-skill-levels>
   <input type="hidden" name="skill_reviewed" value="{{ '1' if skill_reviewed|default(false) else '0' }}" data-skill-reviewed>
 
   <template data-skill-template>
-    {% set skill_id = "" %}{% set skill_name = "" %}{% set confidence = 100 %}{% set level = "intermediate" %}
+    {% set skill_id = "" %}{% set skill_name = "" %}{% set confidence = 100 %}
     {% include "partials/skill_chip_item.html" %}
   </template>
 </div>

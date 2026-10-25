@@ -5,7 +5,7 @@
 {% if req %}<p class="sub">Mentors for: <strong>{{ req.goal_text }}</strong></p>{% endif %}
 
 {% if matches|selectattr('requested')|list %}
-  <div class="banner info" role="status">You’ve requested an introduction. <a href="/student/dashboard">View your dashboard</a>.</div>
+  <div class="banner info" role="status">You’ve requested an introduction. <a href="{{ '/mentorship/' ~ requested_mentorship.id if requested_mentorship else '/student/dashboard' }}">Open your mentorship</a>.</div>
 {% endif %}
 
 {% if not matches %}
