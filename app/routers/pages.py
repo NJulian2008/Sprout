@@ -41,6 +41,12 @@ from app.templating import current_user, render
 
 router = APIRouter()
 
+# Minimum extraction confidence for a goal-text skill to become a learning
+# target. 0.4 is the first SKILL_EXTRACTION rubric rung that reflects real
+# intent (coursework / one small project) rather than an incidental mention,
+# so ambiguous goals no longer over-produce learning targets (bugfix 2.4).
+GOAL_SKILL_THRESHOLD = 0.4
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,23 +58,37 @@ def _parse_multi(form_value: str | None) -> list[str]:
     return [v.strip() for v in form_value.split(",") if v.strip()]
 
 
+def _validated_scores(posted: dict) -> dict[str, float]:
+    """Coerce posted skill scores and run them through ``SkillScores`` (from main).
+
+    Non-numeric values are skipped (not raised); unknown taxonomy ids are
+    dropped and valid values clamped to [0.0, 1.0] and rounded to 2 decimals.
+    """
+    from app.schemas.ai import SkillScores
+
+    numeric: dict[str, float] = {}
+    for k, v in posted.items():
+        try:
+            numeric[str(k)] = float(v)
+        except (TypeError, ValueError):
+            continue
+    return SkillScores(skills=numeric).skills
+
+
 def _parse_skill_scores(raw: str | None) -> dict[str, float]:
-    """Parse the optional skill editor payload while preserving old submissions."""
+    """Parse the optional skill-editor JSON payload, then validate it.
+
+    Keeps the UI's forgiving JSON handling (old submissions never raise) and
+    delegates to ``_validated_scores`` so unknown taxonomy ids are dropped and
+    values clamped/rounded.
+    """
     try:
         values = json.loads(raw or "{}")
     except (TypeError, json.JSONDecodeError):
         return {}
     if not isinstance(values, dict):
         return {}
-    scores = {}
-    for skill_id, value in values.items():
-        try:
-            score = float(value)
-        except (TypeError, ValueError):
-            continue
-        if skill_id and 0 <= score <= 1:
-            scores[str(skill_id)] = score
-    return scores
+    return _validated_scores(values)
 
 
 def _resume_text_from_upload(upload: UploadFile) -> str:
@@ -254,7 +274,11 @@ def student_signup_submit(
         goal_text=goal_text,
         goal_type=goal_type,
         specialty=specialty,
-        skills_to_learn=list(goal_skills),
+        skills_to_learn=[
+            skill_id
+            for skill_id, confidence in goal_skills.items()
+            if confidence >= GOAL_SKILL_THRESHOLD
+        ],
         cadence=cadence,
         availability=_parse_multi(availability),
         top3=_parse_multi(top3),
@@ -461,9 +485,13 @@ def student_choose_mentor(
 def student_skills_extract(
     request: Request,
     db: Session = Depends(get_session),
-    text: str = Form(""),
+    resume_file: UploadFile = File(...),
 ):
-    scores = extract_skills(text, db) if text.strip() else {}
+    try:
+        resume_text = _resume_text_from_upload(resume_file)
+    except HTTPException:
+        resume_text = ""
+    scores = extract_skills(resume_text, db) if resume_text.strip() else {}
     return render(
         "partials/skill_chips.html",
         {
@@ -993,6 +1021,13 @@ def _load_workspace(db: Session, mentorship_id: int):
         db.query(Meeting).filter(Meeting.mentorship_id == ms.id).order_by(Meeting.number).all()
     )
     testimonials = db.query(Testimonial).filter(Testimonial.mentorship_id == ms.id).all()
+    message_rows = (
+        db.query(Message)
+        .filter(Message.mentorship_id == ms.id)
+        .order_by(Message.created_at, Message.id)
+        .all()
+    )
+    messages = [{"msg": m, "sender": db.get(User, m.sender_id)} for m in message_rows]
     return {
         "ms": ms,
         "mentor": mentor,
@@ -1002,6 +1037,7 @@ def _load_workspace(db: Session, mentorship_id: int):
         "meetings": meetings,
         "milestones": _workspace_milestones(ms, deliverables, meetings),
         "testimonials": testimonials,
+        "messages": messages,
     }
 
 

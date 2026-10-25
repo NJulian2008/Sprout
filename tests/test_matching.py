@@ -227,3 +227,68 @@ def test_availability_relaxed_when_few_pass():
     # No overlap at all, but relaxation returns all capacity-passing mentors
     assert len(result) == 2
     assert all(m.schedule_needs_discussion for m in result)
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Preservation property tests (spec: skill-extraction-data-corruption-fix)
+#
+# Property 5 (Preservation): Non-buggy inputs unchanged.
+#
+# Observation-first methodology: these capture the CURRENT (unfixed) behavior
+# as the baseline to preserve. They MUST PASS on unfixed code. After the fixes
+# are applied they must still pass (no regression).
+#
+# Scope here: a well-supported goal (confidences >= 0.4) still ranks mentors
+# and produces matches as before (requirement 3.7). test_matching.py owns the
+# pure deterministic matching service, so we assert the ranking baseline here.
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def _well_supported_student():
+    """A student whose goal yields well-supported (>= 0.4) skills to learn."""
+    return StudentProfile(
+        id=1,
+        goal_type="learn_skill",
+        skills_to_learn=["python", "machine_learning"],
+        skill_scores={"python": 0.3},
+        experience_score=0.3,
+        availability=["Mon-Evening"],
+    )
+
+
+def test_preserve_well_supported_goal_still_ranks_mentors():
+    """3.7 — a well-supported goal still ranks mentors and produces matches.
+
+    Baseline captured on unfixed code: rank() returns a non-empty, fully
+    ordered shortlist for a student whose skills_to_learn are well-supported,
+    and the ordering is exactly [3, 2, 1] for this fixed pool.
+    """
+    student = _well_supported_student()
+    ranked = rank(student, _mentor_pool())
+
+    # Baseline: all three mentors ranked, highest-overlap mentor first.
+    ordered_ids = [m.id for m, _score, _breakdown in ranked]
+    assert ordered_ids == [3, 2, 1]
+
+    # Baseline: every ranked entry carries a numeric score and a breakdown.
+    assert all(isinstance(score, float) for _m, score, _b in ranked)
+    assert all(score >= 0.0 for _m, score, _b in ranked)
+
+    # Baseline: the top mentor is the one sharing both well-supported skills.
+    top_mentor = ranked[0][0]
+    assert top_mentor.skill_scores.get("python", 0.0) >= 0.5
+    assert top_mentor.skill_scores.get("machine_learning", 0.0) >= 0.5
+
+
+def test_preserve_well_supported_goal_top_score_positive():
+    """3.7 — the best match for a well-supported goal has a positive score.
+
+    Baseline: a well-supported goal produces a leading match with score > 0,
+    confirming matches are still produced (not an empty/degenerate shortlist).
+    """
+    student = _well_supported_student()
+    ranked = rank(student, _mentor_pool())
+
+    assert len(ranked) == 3
+    top_score = ranked[0][1]
+    assert top_score > 0.0

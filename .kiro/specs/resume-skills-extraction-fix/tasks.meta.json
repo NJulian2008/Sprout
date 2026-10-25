@@ -1,0 +1,145 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "All 5 bug-condition assertions failed on UNFIXED code, confirming the bug (expected outcome for an exploration test).\n\nCounterexamples:\n1. GET /student/signup — id=\"skill-chips-result\" absent. The student page never includes partials/skill_chips.html, so there is no preview target element.\n2. GET /student/signup — resume input carries none of hx-post=\"/student/skills/extract\", hx-target=\"#skill-chips-result\", hx-encoding=\"multipart/form-data\", hx-swap=\"outerHTML\". No HTMX preview request can fire.\n3. POST /student/skills/extract with a readable multipart resume (e.g. (\"resume.txt\", b\"I know some python and git\", \"text/plain\")) returns 200 but renders the empty-state fragment:\n   <div id=\"skill-chips-result\">\n     <p class=\"muted\">No skills detected yet. ...</p>\n     <input type=\"hidden\" name=\"skill_scores_json\" value=\"{}\">\n   </div>\n   No chips; skill_scores_json=\"{}\". The handler reads `text: str = Form(\"\")`, not the uploaded file, so the resume is ignored. Reproduced for all 3 parametrized readable TXT payloads.",
+      "lastRunTimestamp": 1792885669023
+    },
+    "3.3 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1792886651947
+    },
+    "3.4 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1792886691717
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885555982
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885562081
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885685772
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885556086
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885688361
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886169520
+      }
+    ],
+    "3.1 Wire the student sign-up template preview": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885556166
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886174821
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886456451
+      }
+    ],
+    "3.2 Make the student extract endpoint accept and process the uploaded file": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885556229
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886458734
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886514962
+      }
+    ],
+    "3.3 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885556286
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886517730
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886663099
+      }
+    ],
+    "3.4 Verify preservation tests still pass": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885556383
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886665279
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886701756
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792885556451
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886704727
+      },
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886749599
+      }
+    ],
+    "3. Fix for missing student-side resume skills preview wiring": [
+      {
+        "executionId": "17e4163e-39d1-42d4-ad4c-48e5f5c78ac0",
+        "chatSessionId": "sess_7fa1f930-07b9-47cd-82fa-2e88c12ac619",
+        "timestamp": 1792886701947
+      }
+    ]
+  }
+}

@@ -80,3 +80,120 @@ def test_fallback_extract_confidence_capped():
 
 def test_fallback_extract_empty_text():
     assert fallback_extract("") == {}
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# _validated_scores() — posted mentor/student score validation
+# (spec: skill-extraction-data-corruption-fix, Task 3.2)
+#
+# _validated_scores lives in app.routers.pages. It coerces each posted value
+# with float() inside a try/except (skipping malformed entries) and routes the
+# numeric map through SkillScores, so unknown ids drop, values clamp to
+# [0.0, 1.0] and round to 2 decimals, and non-numeric entries are skipped
+# without raising.
+#
+# Validates: Requirements 2.1, 2.2, 2.3; design Correctness Property 1.
+# ───────────────────────────────────────────────────────────────────────────
+
+from app.routers.pages import _validated_scores
+
+
+def test_validated_scores_drops_unknown_ids():
+    """2.1 — ids not in the taxonomy are dropped."""
+    result = _validated_scores({"python": 0.8, "quantum_telepathy": 0.9})
+    assert "quantum_telepathy" not in result
+    assert result == {"python": 0.8}
+
+
+def test_validated_scores_clamps_above_range():
+    """2.2 — a confidence above 1.0 is clamped to 1.0."""
+    result = _validated_scores({"python": 1.7})
+    assert result["python"] == 1.0
+
+
+def test_validated_scores_clamps_below_range():
+    """2.2 — a negative confidence is clamped to 0.0."""
+    result = _validated_scores({"python": -0.2})
+    assert result["python"] == 0.0
+
+
+def test_validated_scores_rounds_to_two_decimals():
+    """2.2 — in-range values are rounded to 2 decimal places."""
+    result = _validated_scores({"python": 0.123456})
+    assert result["python"] == 0.12
+
+
+def test_validated_scores_skips_non_numeric_without_raising():
+    """2.3 — a non-numeric value is skipped, not raised."""
+    # "expert" cannot be coerced by float(); it must be ignored while the
+    # valid entry survives.
+    result = _validated_scores({"python": 0.5, "docker": "expert"})
+    assert result == {"python": 0.5}
+    assert "docker" not in result
+
+
+def test_validated_scores_non_numeric_only_returns_empty():
+    """2.3 — an all-malformed map returns an empty dict without raising."""
+    assert _validated_scores({"python": "expert"}) == {}
+
+
+def test_validated_scores_coerces_numeric_strings():
+    """float() accepts numeric strings, so "0.8" coerces like 0.8."""
+    result = _validated_scores({"python": "0.8"})
+    assert result == {"python": 0.8}
+
+
+def test_validated_scores_empty_input():
+    assert _validated_scores({}) == {}
+
+
+def test_validated_scores_property_random_mixed_maps():
+    """Property-based (Correctness Property 1): random {id: value} maps mixing
+    known/unknown ids, in/out-of-range, and non-numeric values always yield an
+    output whose keys are all taxonomy ids, whose values are all within
+    [0.0, 1.0], and that raises no exception.
+
+    Hypothesis is not a project dependency, so we drive a seeded stdlib random
+    loop over many generated inputs (matching the preservation property test
+    `test_preserve_random_valid_mentor_scores_persist_cleaned`).
+
+    Validates: Requirements 2.1, 2.2, 2.3
+    """
+    import random
+
+    taxonomy = load_taxonomy()
+    known_ids = sorted(taxonomy.keys())
+    unknown_ids = [f"not_a_skill_{i}" for i in range(10)]
+
+    def random_value(rng):
+        kind = rng.choice(["in_range", "above", "below", "non_numeric", "numeric_str"])
+        if kind == "in_range":
+            return round(rng.uniform(0.0, 1.0), 4)
+        if kind == "above":
+            return rng.uniform(1.0001, 5.0)
+        if kind == "below":
+            return rng.uniform(-5.0, -0.0001)
+        if kind == "numeric_str":
+            return str(round(rng.uniform(0.0, 1.0), 2))
+        # non_numeric
+        return rng.choice(["expert", "n/a", "", None, "high"])
+
+    rng = random.Random(20240607)  # seeded for reproducibility
+    for _ in range(300):
+        n = rng.randint(0, 8)
+        posted = {}
+        for _ in range(n):
+            key = rng.choice(known_ids + unknown_ids)
+            posted[key] = random_value(rng)
+
+        # Must never raise, regardless of malformed/unknown/out-of-range input.
+        result = _validated_scores(posted)
+
+        # Output keys are all valid taxonomy ids.
+        assert all(k in taxonomy for k in result), (
+            f"output keys must all be taxonomy ids; posted={posted} result={result}"
+        )
+        # Output values are all within [0.0, 1.0].
+        assert all(0.0 <= v <= 1.0 for v in result.values()), (
+            f"output values must be within [0.0, 1.0]; posted={posted} result={result}"
+        )
