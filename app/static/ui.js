@@ -51,11 +51,15 @@
       var total = Number(form.getAttribute("data-total-steps") || panels.length);
       var current = Number(form.getAttribute("data-initial-step") || 0);
       var count = form.parentElement.querySelector("[data-step-count]");
+      var pageHeading = form.parentElement.querySelector("[data-wizard-heading]");
       var progress = form.parentElement.querySelectorAll("[data-progress]");
 
       function showStep(index) {
         current = Math.max(0, Math.min(index, total - 1));
         panels.forEach(function (panel, panelIndex) { panel.hidden = panelIndex !== current; });
+        if (pageHeading && panels[current].hasAttribute("data-step-title")) {
+          pageHeading.textContent = panels[current].getAttribute("data-step-title");
+        }
         progress.forEach(function (segment) {
           segment.classList.toggle("done", Number(segment.getAttribute("data-progress")) <= current);
         });

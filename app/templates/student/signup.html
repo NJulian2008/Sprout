@@ -7,7 +7,7 @@
     {% for n in range(3) %}<li data-progress="{{ n }}" {% if n == 0 %}class="done"{% endif %}></li>{% endfor %}
   </ol>
   <p class="eyebrow" data-step-count>Step 1 of 3</p>
-  <h1>Review your skills</h1>
+  <h1 data-wizard-heading>Review your skills</h1>
   <p class="sub">These skills came from your resume. Adjust anything that’s off.</p>
   <form method="post" action="/student/signup" data-wizard data-total-steps="3">
     <input type="hidden" name="stage" value="create">
@@ -18,7 +18,7 @@
     <input type="hidden" name="resume_text" value="{{ fd.get('resume_text', '') }}">
     <input type="hidden" name="top3" value="{{ fd.get('top3', '') }}" data-select-value="top3">
 
-    <section class="wizard-step" data-step-panel="0">
+    <section class="wizard-step" data-step-panel="0" data-step-title="Review your skills">
       <div class="card">
         {% set field_name = "skill_scores_json" %}
         {% include "partials/skill_chips.html" %}
@@ -26,7 +26,7 @@
       <button class="btn" type="button" data-wizard-next>Continue</button>
     </section>
 
-    <section class="wizard-step" data-step-panel="1" hidden>
+    <section class="wizard-step" data-step-panel="1" data-step-title="When are you free?" hidden>
       <div class="card">
         <h2 class="mt0">When are you free?</h2>
         <p class="secondary">Choose the times that usually work for you.</p>
@@ -38,7 +38,7 @@
       <button class="back" type="button" data-wizard-back>Back</button>
     </section>
 
-    <section class="wizard-step" data-step-panel="2" hidden>
+    <section class="wizard-step" data-step-panel="2" data-step-title="What matters most to you?" hidden>
       <div class="card">
         <h2 class="mt0">What matters most to you?</h2>
         <p class="secondary">Choose three priorities.</p>

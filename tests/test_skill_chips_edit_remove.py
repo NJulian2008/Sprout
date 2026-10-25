@@ -176,6 +176,9 @@ def test_student_skill_review_follows_resume_and_has_step_navigation(client):
     )
     assert review.status_code == 200
     html = review.text
+    assert '<h1 data-wizard-heading>Review your skills</h1>' in html
+    assert 'data-step-title="When are you free?"' in html
+    assert 'data-step-title="What matters most to you?"' in html
     assert html.index("Review your skills") < html.index("When are you free?")
     assert html.index("When are you free?") < html.index("What matters most to you?")
     assert html.count('data-wizard-back') == 2
