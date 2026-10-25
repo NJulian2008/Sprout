@@ -4,7 +4,7 @@
 <h1>Offer to mentor</h1>
 <p class="muted">Paste your resume and we'll pull out your skills. Bounded commitment, real impact.</p>
 
-<form method="post" action="/mentor/signup">
+<form method="post" action="/mentor/signup" enctype="multipart/form-data">
   <div class="card">
     <h3>About you</h3>
     <div class="field"><label>Name</label><input type="text" name="name" required></div>
@@ -30,6 +30,16 @@
           <option value="{{ value }}">{{ label }}</option>
         {% endfor %}
       </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Resume</h3>
+    <p class="muted sample-note">Required so we can estimate your skills and match you with the right students.</p>
+    <div class="field">
+                  <label for="mentor-resume-file">Upload your resume (PDF, DOCX, or TXT)</label>
+            <input type="file" name="resume_file" id="mentor-resume-file"
+                    accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required>
     </div>
   </div>
 

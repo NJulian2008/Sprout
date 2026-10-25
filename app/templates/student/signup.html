@@ -29,8 +29,15 @@
     <div class="field">
                   <label for="student-resume">Upload your resume (PDF, DOCX, or TXT)</label>
             <input type="file" name="resume_file" id="student-resume"
-                    accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required>
+                    accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required
+                    hx-post="/student/skills/extract"
+                    hx-trigger="change"
+                    hx-encoding="multipart/form-data"
+                    hx-target="#skill-chips-result"
+                    hx-swap="outerHTML">
     </div>
+    {% set skill_scores = {} %}{% set experience_level = "intermediate" %}{% set experience_score = 0 %}{% set field_name = "skill_scores_json" %}
+    {% include "partials/skill_chips.html" %}
   </div>
 
   <div class="card">

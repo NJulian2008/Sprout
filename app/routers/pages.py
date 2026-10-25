@@ -364,9 +364,13 @@ def student_choose_mentor(
 def student_skills_extract(
     request: Request,
     db: Session = Depends(get_session),
-    text: str = Form(""),
+    resume_file: UploadFile = File(...),
 ):
-    scores = extract_skills(text, db) if text.strip() else {}
+    try:
+        resume_text = _resume_text_from_upload(resume_file)
+    except HTTPException:
+        resume_text = ""
+    scores = extract_skills(resume_text, db) if resume_text.strip() else {}
     exp_s = experience_score(scores)
     return render(
         "partials/skill_chips.html",
@@ -440,7 +444,11 @@ def mentor_signup_submit(
     top3: str = Form(""),
     max_students: int = Form(2),
     specialties: str = Form(""),
+    resume_file: UploadFile = File(...),
 ):
+    resume_text = _resume_text_from_upload(resume_file)
+    if not resume_text.strip():
+        raise HTTPException(status_code=422, detail="Resume text is required.")
     user = User(
         role="mentor",
         name=name,
