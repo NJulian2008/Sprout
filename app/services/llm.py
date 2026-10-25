@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from typing import Protocol, runtime_checkable
 
@@ -112,8 +113,22 @@ def get_llm_client(db: Session) -> LLMClient:
 
 # ── Cache helpers ─────────────────────────────────────────────────────────────
 
+CACHE_VERSION = "v2"
+
+
+def _taxonomy_signature() -> str:
+    """Return a short sha256 of the sorted taxonomy ids.
+
+    Folded into the cache key so a taxonomy change invalidates stale entries.
+    """
+    from app.services.skills import load_taxonomy
+    ids = ",".join(sorted(load_taxonomy().keys()))
+    return hashlib.sha256(ids.encode()).hexdigest()[:12]
+
+
 def _cache_key(system: str, prompt: str) -> str:
-    return hashlib.sha256((system + prompt).encode()).hexdigest()
+    material = f"{CACHE_VERSION}\x00{_taxonomy_signature()}\x00{system}\x00{prompt}"
+    return hashlib.sha256(material.encode()).hexdigest()
 
 
 def _read_cache(db: Session, key: str) -> str | None:
@@ -128,6 +143,18 @@ def _write_cache(db: Session, key: str, response: str) -> None:
     if existing is None:
         db.add(LLMCache(key=key, response=response))
         db.commit()
+
+
+# ── Parsing helpers ───────────────────────────────────────────────────────────
+
+_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
+
+
+def _loads_tolerant(raw: str):
+    """json.loads after stripping an optional surrounding markdown code fence."""
+    match = _FENCE_RE.match(raw)
+    candidate = match.group(1) if match else raw
+    return json.loads(candidate)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -165,7 +192,7 @@ def extract_skills(text: str, db: Session) -> dict[str, float]:
             raw = client.complete_json(system, prompt, timeout_s=6.0)
             latency = time.monotonic() - t0
             logger.info("extract_skills: LLM latency=%.2fs attempt=%d", latency, attempt + 1)
-            validated = SkillScores.model_validate(json.loads(raw))
+            validated = SkillScores.model_validate(_loads_tolerant(raw))
             _write_cache(db, key, raw)
             return validated.skills
         except LLMUnavailable:
@@ -175,7 +202,7 @@ def extract_skills(text: str, db: Session) -> dict[str, float]:
             if attempt == 1:
                 break
 
-    logger.info("extract_skills: using fallback keyword extraction")
+    logger.warning("extract_skills: LLM extraction unavailable — using keyword fallback")
     return fallback_extract(text)
 
 
@@ -212,7 +239,7 @@ def rerank_and_explain(
             raw = client.complete_json(system, prompt, timeout_s=6.0)
             latency = time.monotonic() - t0
             logger.info("rerank_and_explain: LLM latency=%.2fs attempt=%d", latency, attempt + 1)
-            result = MatchExplanations.model_validate(json.loads(raw))
+            result = MatchExplanations.model_validate(_loads_tolerant(raw))
             # Validate mentor ids are among the top-5
             top5_ids = {
                 str(c["mentor_id"])
@@ -230,7 +257,7 @@ def rerank_and_explain(
             if attempt == 1:
                 break
 
-    logger.info("rerank_and_explain: using fallback template explanations")
+    logger.warning("rerank_and_explain: LLM rerank unavailable — using template fallback")
     return _fallback_explanations(candidates_json)
 
 

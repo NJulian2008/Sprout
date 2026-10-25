@@ -1,0 +1,254 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Write bug condition exploration tests (BEFORE implementing any fix)": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893500196
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893509188
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893696465
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893500656
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893701458
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893979265
+      }
+    ],
+    "3.1 Add `_validated_scores` helper and use it in both signup handlers": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893500862
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893985202
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894061613
+      }
+    ],
+    "3.2 Unit + property tests for `_validated_scores`": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893501062
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894066789
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894192668
+      }
+    ],
+    "4.1 Add `GOAL_SKILL_THRESHOLD = 0.4` and filter goal extraction": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893501248
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894196700
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894276402
+      }
+    ],
+    "4.2 Unit + property + integration tests for the goal threshold": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893501475
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894278945
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894420997
+      }
+    ],
+    "5.1 Add `CACHE_VERSION` + `_taxonomy_signature()` and fold both into `_cache_key`": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893501692
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894424941
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894494247
+      }
+    ],
+    "5.2 Unit tests for versioned cache key": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893502052
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894496925
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894595924
+      }
+    ],
+    "6.1 Add `_loads_tolerant` helper and upgrade the fallback log": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893502241
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894599370
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894712925
+      }
+    ],
+    "6.2 Unit + property tests for tolerant parsing and fallback signal": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893502419
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894715554
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894913724
+      }
+    ],
+    "7. Verify bug condition exploration tests now pass": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893502737
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894919990
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894971242
+      }
+    ],
+    "8. Verify preservation tests still pass": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893502988
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894973746
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792895199881
+      }
+    ],
+    "9. Checkpoint - Run the full test suite and build verification": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792893503234
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792895202923
+      },
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792895474231
+      }
+    ],
+    "3. Fix 1 - Validate posted mentor/student scores through `SkillScores`": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894192913
+      }
+    ],
+    "4. Fix 2 - Threshold goal skills before they become learning targets": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894421185
+      }
+    ],
+    "5. Fix 3 - Version the cache key and validate before writing": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894596142
+      }
+    ],
+    "6. Fix 4 - Tolerant JSON parsing with a clear fallback signal": [
+      {
+        "executionId": "f9b09422-8455-44b7-b09d-14a7d3c2a89f",
+        "chatSessionId": "sess_cf5733c2-0454-472a-90e2-568d6b7bf5b4",
+        "timestamp": 1792894913953
+      }
+    ]
+  }
+}

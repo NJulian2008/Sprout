@@ -112,6 +112,31 @@ h3 { font-size: 1.05rem; }
 .chip-selectable { cursor: pointer; background: #f3f4f6; color: var(--ink); border-color: var(--line); }
 .chip-selectable.selected { background: var(--green); color: #fff; }
 
+/* ── Skill chip controls (remove / add) ──────────────────────────────────── */
+.chip-label { font-weight: 600; }
+.chip-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.1rem; height: 1.1rem; padding: 0; margin-left: .1rem;
+  border: none; border-radius: 50%; background: transparent;
+  color: var(--muted); font-size: 1rem; line-height: 1; cursor: pointer;
+}
+.chip-remove:hover { background: rgba(192, 57, 43, .12); color: var(--danger); }
+
+.chip-add-row { display: flex; gap: .4rem; align-items: center; margin: .5rem 0; flex-wrap: wrap; }
+.chip-add-input {
+  width: auto; min-width: 11rem; padding: .3rem .5rem; font-size: .8rem;
+  font-family: inherit; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; background: #fff;
+}
+.chip-add-input:focus { outline: none; border-color: var(--green); }
+.chip-add-error { font-size: .75rem; color: var(--danger); }
+.chip-add {
+  padding: .3rem .8rem; font-size: .8rem; font-weight: 600; cursor: pointer;
+  color: var(--green-dark); background: var(--green-light);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.chip-add:hover { background: var(--green); color: #fff; border-color: var(--green); }
+
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-block; padding: .55rem 1.1rem; border-radius: 8px;

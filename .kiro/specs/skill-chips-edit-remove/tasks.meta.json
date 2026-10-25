@@ -1,0 +1,148 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Write bug condition exploration tests (BEFORE implementing the fix)": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283045
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890289034
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890426187
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing the fix)": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283131
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890429126
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890778276
+      }
+    ],
+    "3.1 Add per-chip edit + remove controls, a taxonomy-constrained add control (both branches), and a self-initializing sync/recompute script to the chips partial": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283221
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890784677
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890914172
+      }
+    ],
+    "3.2 Make the student submit handler honor a posted `skill_scores_json`": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283288
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890916768
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792891654077
+      }
+    ],
+    "3.3 Style the new chip + add controls": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283345
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792891656858
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792891758458
+      }
+    ],
+    "3.4 Verify the bug condition exploration tests now pass": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283395
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792891761110
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792891801755
+      }
+    ],
+    "3.5 Verify the preservation tests still pass": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283445
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792891804348
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792892152762
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792890283506
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792892155523
+      },
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792892246363
+      }
+    ],
+    "3. Fix for non-editable / non-removable / non-addable skill chips and discarded student-path edits": [
+      {
+        "executionId": "30bf50e9-1ce6-450e-abdc-2b67d4b10a1e",
+        "chatSessionId": "sess_f557f461-4845-42b5-8eaf-48c59f1c093d",
+        "timestamp": 1792892152835
+      }
+    ]
+  }
+}

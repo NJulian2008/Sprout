@@ -17,7 +17,7 @@ from app.schemas.match import MatchOut
 from app.schemas.mentorship import DeliverableOut, MentorshipOut
 from app.services import mentorship as fsm
 from app.services.llm import extract_skills
-from app.services.skills import load_taxonomy
+from app.services.skills import load_taxonomy, normalize_skill_id
 from app.templating import current_user
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -27,6 +27,23 @@ router = APIRouter(prefix="/api", tags=["api"])
 def api_taxonomy() -> list[dict]:
     """Return the full skills taxonomy as a list of entries."""
     return list(load_taxonomy().values())
+
+
+@router.get("/skills/normalize")
+def api_normalize_skill(q: str = "") -> dict:
+    """Resolve free-text ``q`` to a canonical taxonomy skill.
+
+    Uses ``normalize_skill_id`` (exact id/label/alias match, then rapidfuzz
+    fuzzy match ≥ 85 when available), so near-miss typos still resolve. Returns
+    ``{"id": None, "label": None}`` when nothing matches — the caller rejects
+    the add rather than persisting a non-canonical key.
+    """
+    sid = normalize_skill_id(q) if q.strip() else None
+    if sid is None:
+        return {"id": None, "label": None}
+    taxonomy = load_taxonomy()
+    entry = taxonomy.get(sid, {})
+    return {"id": sid, "label": entry.get("label", sid)}
 
 
 @router.post("/skills/extract")

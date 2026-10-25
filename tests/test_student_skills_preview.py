@@ -359,27 +359,24 @@ def test_preserve_partial_still_emits_skill_scores_json_field(client):
     assert 'name="skill_scores_json"' in r.text
 
 
-def test_preserve_student_submission_ignores_posted_skill_scores_json(client):
-    """3.3 Observed baseline: the student_signup_submit handler does NOT read a
-    posted skill_scores_json — it always re-extracts from the resume text. So a
-    non-empty skill_scores_json field has no effect on the persisted scores.
+def test_student_submission_honors_posted_skill_scores_json(client):
+    """Student submit now HONORS a posted non-empty skill_scores_json.
 
-    This pins the CURRENT submission-side treatment so the fix leaves it
-    unchanged (the fix only touches the preview endpoint and template, not this
-    handler).
+    Changed intentionally by the skill-chips-edit-remove bugfix (Requirement
+    2.8): this test previously pinned the old buggy behavior where the student
+    handler discarded posted edits and re-extracted from the resume.
     """
     c, SessionMaker = client
-    from app.services.llm import extract_skills
 
     resume_text = "I know some python and git"
-    bogus_scores = {"python": 0.01, "javascript": 0.99}
+    edited_scores = {"python": 0.5}
     r = c.post(
         "/student/signup",
         data={
             "name": "Precedence Student",
             "goal_text": "Build an ML project",
             "specialty": "artificial_intelligence",
-            "skill_scores_json": json.dumps(bogus_scores),
+            "skill_scores_json": json.dumps(edited_scores),
         },
         files={"resume_file": ("resume.txt", _make_txt(resume_text), "text/plain")},
         follow_redirects=False,
@@ -390,9 +387,8 @@ def test_preserve_student_submission_ignores_posted_skill_scores_json(client):
     try:
         req = db.query(StudentRequest).order_by(StudentRequest.id.desc()).first()
         assert req is not None
-        # Persisted scores come from re-extraction, NOT the posted field.
-        assert req.skill_scores == extract_skills(resume_text, db)
-        assert req.skill_scores != bogus_scores
+        # Persisted scores come from the posted edited field, NOT re-extraction.
+        assert req.skill_scores == edited_scores
     finally:
         db.close()
 

@@ -41,6 +41,12 @@ from app.templating import current_user, render
 
 router = APIRouter()
 
+# Minimum extraction confidence for a goal-text skill to become a learning
+# target. 0.4 is the first SKILL_EXTRACTION rubric rung that reflects real
+# intent (coursework / one small project) rather than an incidental mention,
+# so ambiguous goals no longer over-produce learning targets (bugfix 2.4).
+GOAL_SKILL_THRESHOLD = 0.4
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -50,6 +56,23 @@ def _parse_multi(form_value: str | None) -> list[str]:
     if not form_value:
         return []
     return [v.strip() for v in form_value.split(",") if v.strip()]
+
+
+def _validated_scores(posted: dict) -> dict[str, float]:
+    """Coerce posted skill scores and run them through ``SkillScores``.
+
+    Non-numeric values are skipped (not raised); unknown ids are dropped and
+    valid values clamped to [0.0, 1.0] and rounded to 2 decimals by SkillScores.
+    """
+    from app.schemas.ai import SkillScores
+
+    numeric: dict[str, float] = {}
+    for k, v in posted.items():
+        try:
+            numeric[k] = float(v)
+        except (TypeError, ValueError):
+            continue  # malformed entry ignored (2.3)
+    return SkillScores(skills=numeric).skills
 
 
 def _resume_text_from_upload(upload: UploadFile) -> str:
@@ -151,6 +174,7 @@ def student_signup_submit(
     cadence: str = Form("weekly"),
     availability: str = Form(""),
     top3: str = Form(""),
+    skill_scores_json: str = Form("{}"),
     resume_file: UploadFile = File(...),
 ):
     resume_text = _resume_text_from_upload(resume_file)
@@ -166,7 +190,16 @@ def student_signup_submit(
     db.add(user)
     db.flush()
 
-    scores = extract_skills(resume_text, db)
+    try:
+        posted = json.loads(skill_scores_json) if skill_scores_json else {}
+    except json.JSONDecodeError:
+        posted = {}
+    if posted:
+        scores = _validated_scores(posted)
+    elif resume_text.strip():
+        scores = extract_skills(resume_text, db)
+    else:
+        scores = {}
     goal_skills = extract_skills(goal_text, db)
     goal_type = _infer_goal_type(goal_text)
 
@@ -176,7 +209,11 @@ def student_signup_submit(
         goal_text=goal_text,
         goal_type=goal_type,
         specialty=specialty,
-        skills_to_learn=list(goal_skills),
+        skills_to_learn=[
+            skill_id
+            for skill_id, confidence in goal_skills.items()
+            if confidence >= GOAL_SKILL_THRESHOLD
+        ],
         cadence=cadence,
         availability=_parse_multi(availability),
         top3=_parse_multi(top3),
@@ -474,7 +511,7 @@ def mentor_signup_submit(
     except json.JSONDecodeError:
         posted = {}
     if posted:
-        scores = {k: float(v) for k, v in posted.items()}
+        scores = _validated_scores(posted)
     elif resume_text.strip():
         scores = extract_skills(resume_text, db)
     else:
